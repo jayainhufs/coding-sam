@@ -1,0 +1,16 @@
+[
+    {
+      "id": "max-subarray",
+      "title": "연속 부분 배열의 최대합",
+      "description": "정수 배열이 주어졌을 때, 연속 부분 배열 중 가장 큰 합을 구하세요.",
+      "difficulty": "Medium",
+      "tags": ["array","dp","kadane"]
+    },
+    {
+      "id": "two-sum",
+      "title": "두 수의 합",
+      "description": "정수 배열과 타겟이 주어지면 합이 타겟이 되는 두 인덱스를 반환하세요.",
+      "difficulty": "Easy",
+      "tags": ["array","hashmap"]
+    }
+  ]
