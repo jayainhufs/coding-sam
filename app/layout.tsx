@@ -1,6 +1,7 @@
 import './globals.css'
 import type { Metadata } from 'next'
-import { hufsFont } from './fonts'   // ← 추가
+import { hufsFont } from './fonts'
+import NavBar from '../components/NavBar'
 
 export const metadata: Metadata = {
   title: 'coding-sam',
@@ -11,6 +12,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="ko">
       <body className={`${hufsFont.variable} antialiased bg-white text-gray-900`}>
+        <NavBar />
         {children}
       </body>
     </html>

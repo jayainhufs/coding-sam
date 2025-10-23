@@ -2,10 +2,13 @@ import localFont from 'next/font/local'
 
 export const hufsFont = localFont({
   src: [
-    { path: './fonts/HUFS-Regular.woff2', weight: '400', style: 'normal' },
-    { path: './fonts/HUFS-Bold.woff2',    weight: '700', style: 'normal' },
+    // 가벼운 본문용 (Light)
+    { path: './fonts/HUFS-L.ttf', weight: '300', style: 'normal' },
+    // 기본 본문 (Medium)
+    { path: './fonts/HUFS-M.ttf', weight: '500', style: 'normal' },
+    // 제목/강조 (Bold)
+    { path: './fonts/HUFS-B.ttf', weight: '700', style: 'normal' },
   ],
-  // 파일명이 다르면 path만 바꿔주세요 (예: .ttf/.otf)
   variable: '--font-hufs',
   display: 'swap',
 })

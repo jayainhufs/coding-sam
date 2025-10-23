@@ -8,7 +8,6 @@ export default function Page() {
         <div className="text-3xl font-black tracking-tight">coding-sam</div>
       </div>
 
-      {/* 이미지 살짝 더 작게 */}
       <Image
         src="/Homepage_icon.jpg"
         alt="코딩샘 메인 일러스트"
@@ -23,15 +22,13 @@ export default function Page() {
       </h1>
 
       <div className="w-full max-w-[420px] grid gap-3">
-        {/* 메인 버튼: 네이비 배경 + 흰 글자 + 동일한 네이비 테두리 */}
         <Link
-          href="/onboarding"
+          href="/home"
           className="inline-flex items-center justify-center rounded-2xl bg-[#002D56] text-white font-semibold py-4 px-6 shadow-md ring-2 ring-[#002D56] hover:bg-[#002D56]/90 transition"
         >
           시작하기
         </Link>
 
-        {/* 보조 버튼: 흰 배경 + 네이비 테두리/텍스트 (색 통일) */}
         <button
           type="button"
           aria-disabled

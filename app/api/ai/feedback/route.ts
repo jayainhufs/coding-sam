@@ -1,43 +1,79 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextResponse } from 'next/server'
 import { z } from 'zod'
-import { getOpenAI } from '@/lib/openai'
+import { openai } from '@/lib/openai'
 
-const Body = z.object({
-  step: z.enum(['understand','decompose','pattern','abstract','pseudocode']),
-  userInput: z.any(),
-  problem: z.object({ id: z.string(), title: z.string(), description: z.string().optional() })
+// 우리 플로우의 5단계 (문서 기준): 이해, 분해, 패턴, 추상화, 의사코드
+const StepEnum = z.enum(['understand', 'decompose', 'pattern', 'abstract', 'pseudocode'])
+
+const BodySchema = z.object({
+  step: StepEnum,
+  userInput: z.string().min(1, '입력을 작성해 주세요.'),
+  problem: z.object({
+    id: z.string(),
+    title: z.string().optional(),
+    description: z.string().optional(),
+  }),
+  // UI에서 힌트/코드제안을 누르면 mode 로 전달 (optional)
+  mode: z.enum(['hint', 'code-suggest']).optional(),
 })
 
-export async function POST(req: NextRequest) {
+const STEP_TITLES: Record<z.infer<typeof StepEnum>, string> = {
+  understand: '문제 이해하기',
+  decompose: '문제 분해하기',
+  pattern: '패턴 인식하기',
+  abstract: '추상화하기(입/출력/처리 흐름)',
+  pseudocode: '의사코드 설계',
+}
+
+// 각 단계별로 프롬프트를 분리 (PDF 플로우 반영)
+function buildPrompt(step: z.infer<typeof StepEnum>, mode: 'hint' | 'code-suggest' | undefined, userInput: string, problem: {title?: string; description?: string}) {
+  const base = `
+당신은 코딩 학습용 AI 튜터입니다.
+학생이 ${STEP_TITLES[step]} 단계에서 작성한 내용을 보고, ${step} 단계에만 집중해서 한국어로 간결하고 구체적인 피드백을 주세요.
+- 장점 2~3개, 보완점 2~3개로 나눠 bullet로
+- 다음 단계로 넘어갈 때 유의할 점 1~2개
+문제 정보:
+${problem.title ?? ''}
+
+${problem.description ?? ''}
+
+학생 입력:
+${userInput}
+`.trim()
+
+  if (mode === 'hint') {
+    return base + `
+
+[추가 요구] 지금 단계에 맞는 "힌트만" 제시하세요. 정답이나 완전한 코드가 아닌, 사고를 확장시키는 질문/힌트 3개 내로.`
+  }
+  if (mode === 'code-suggest') {
+    return base + `
+
+[추가 요구] 지금 단계의 내용을 바탕으로 "짧은 스니펫" 또는 "의사코드"를 10~20줄 내로 제안하세요.`
+  }
+  return base
+}
+
+export async function POST(req: Request) {
   try {
-    const body = Body.parse(await req.json())
-    const client = getOpenAI()
+    const json = await req.json()
+    const { step, userInput, problem, mode } = BodySchema.parse(json)
 
-    const messages = [
-      {
-        role: 'system' as const,
-        content: `너는 신뢰할 수 있는 시니어 코딩 튜터다. 학생이 ${body.step} 단계에서 입력한 내용을 칭찬 1줄 + 구체적 보완 2~4개 + 체크리스트 3개 형식으로 간결히 피드백하라. 과장 금지, 정확성 우선.`
-      },
-      {
-        role: 'user' as const,
-        content: JSON.stringify({
-          step: body.step,
-          userInput: body.userInput,
-          problem: body.problem,
-        })
-      }
-    ]
+    const prompt = buildPrompt(step, mode, userInput, problem)
 
-    // Responses API (Node SDK)
-    const resp = await client.responses.create({
-      model: process.env.OPENAI_MODEL || 'gpt-4.1-mini',
-      input: messages,
+    const completion = await openai.chat.completions.create({
+      model: process.env.OPENAI_MODEL ?? 'gpt-4o-mini',
+      messages: [
+        { role: 'system', content: '당신은 코딩 학습을 단계적으로 코칭하는 한국어 튜터입니다.' },
+        { role: 'user', content: prompt },
+      ],
+      temperature: 0.3,
     })
 
-    const text = resp.output_text || '피드백 생성 실패'
-    return NextResponse.json({ message: text })
-  } catch (e:any) {
-    console.error(e)
-    return NextResponse.json({ message: '요청 처리 중 오류가 발생했습니다.' }, { status: 400 })
+    const text = completion.choices[0]?.message?.content ?? '응답이 비어있습니다.'
+    return NextResponse.json({ ok: true, step, mode, text })
+  } catch (err: any) {
+    console.error(err)
+    return NextResponse.json({ ok: false, error: err?.message ?? 'server error' }, { status: 400 })
   }
 }
