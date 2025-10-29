@@ -32,8 +32,8 @@ export default function LearnWizard({ problem }: { problem: Problem }) {
   const [understand, setUnderstand] = useState('')
   const [decompose, setDecompose] = useState('')
   const [pattern, setPattern] = useState('')
-  const [abstractIn, setAbstractIn] = useState('입력 정의 예) n: 정수, arr: 길이 n의 정수배열')
-  const [abstractOut, setAbstractOut] = useState('출력 정의 예) 최대 부분합(정수)')
+  const [abstractIn, setAbstractIn] = useState('')
+  const [abstractOut, setAbstractOut] = useState('')
   const [pseudocode, setPseudocode] = useState('')
 
   // 코드/러너 상태
@@ -177,7 +177,7 @@ export default function LearnWizard({ problem }: { problem: Problem }) {
           <>
             <h2 className="text-lg md:text-xl font-bold mb-2">1) 문제 이해하기</h2>
             <p className="text-sm text-slate-600 mb-3">
-              핵심 요구사항 / 입출력 / 제약 / 엣지케이스를 요약해보세요.
+              문제가 원하는 것을 한 문장으로 요약해보세요.
             </p>
             <textarea
               rows={10}
@@ -193,7 +193,7 @@ export default function LearnWizard({ problem }: { problem: Problem }) {
           <>
             <h2 className="text-lg md:text-xl font-bold mb-2">2) 문제 분해하기</h2>
             <p className="text-sm text-slate-600 mb-3">
-              문제를 해결 가능한 작은 하위 단계로 나눠보세요. (체크리스트)
+              문제를 해결 가능한 작은 하위 단계로 나눠보세요. 질문의 형태라도 괜찮아요.
             </p>
             <textarea
               rows={10}
@@ -209,7 +209,7 @@ export default function LearnWizard({ problem }: { problem: Problem }) {
           <>
             <h2 className="text-lg md:text-xl font-bold mb-2">3) 패턴 인식하기</h2>
             <p className="text-sm text-slate-600 mb-3">
-              유사 문제/자료구조/알고리즘 패턴을 연결해보세요.
+              기억나는 유사 문제/자료구조/알고리즘들을 연결해서 어떻게 해결할지 적어봅시다.
             </p>
             <textarea
               rows={10}
@@ -224,22 +224,24 @@ export default function LearnWizard({ problem }: { problem: Problem }) {
         {step === 'abstract' && (
           <>
             <h2 className="text-lg md:text-xl font-bold mb-2">4) 추상화하기</h2>
-            <p className="text-sm text-slate-600 mb-3">입력/출력/처리 흐름을 명확히 정의하세요.</p>
+            <p className="text-sm text-slate-600 mb-3">불필요한 정보 대신 입력/출력 흐름을 정리하세요.</p>
             <div className="grid md:grid-cols-2 gap-3">
               <div>
-                <label className="text-xs text-slate-500">입력 정의</label>
+                <label className="text-xs text-slate-500">입력</label>
                 <textarea
                   rows={8}
                   className="mt-1 w-full h-[200px] rounded-xl border border-slate-300 p-3 outline-none focus:ring-2 focus:ring-[#002D56]"
+                  placeholder="예) 입력: 정수 배열 nums"
                   value={abstractIn}
                   onChange={(e) => setAbstractIn(e.target.value)}
                 />
               </div>
               <div>
-                <label className="text-xs text-slate-500">출력 정의</label>
+                <label className="text-xs text-slate-500">출력 </label>
                 <textarea
                   rows={8}
                   className="mt-1 w-full h-[200px] rounded-xl border border-slate-300 p-3 outline-none focus:ring-2 focus:ring-[#002D56]"
+                  placeholder="예) 최대 연속 합 (현재까지의 합을 누적해 최대값 갱신)"
                   value={abstractOut}
                   onChange={(e) => setAbstractOut(e.target.value)}
                 />
