@@ -2,6 +2,9 @@
 
 import Link from 'next/link'
 import { useEffect, useState } from 'react'
+import LevelCard from '@/components/LevelCard'
+import StreakCard from '@/components/StreakCard'
+import RecommendedToday from '@/components/RecommendedToday'
 
 type Problem = {
   id: string
@@ -13,18 +16,53 @@ type Problem = {
 
 export default function HomeDashboard() {
   const [problems, setProblems] = useState<Problem[]>([])
+  const [xp, setXp] = useState<number>(120)       // 예시: 120 → LV2, 20/100
+  const [streak, setStreak] = useState<number>(3) // 초기 화면 예시값
+
+  // --- XP 영속화 (임시) ---
+  useEffect(() => {
+    const saved = localStorage.getItem('coding-sam:xp')
+    if (saved) setXp(parseInt(saved, 10))
+  }, [])
+  useEffect(() => {
+    localStorage.setItem('coding-sam:xp', String(xp))
+  }, [xp])
+
+  // --- 연속 출석 (하루 1회 갱신) ---
+  useEffect(() => {
+    const keyStreak = 'coding-sam:streak'
+    const keyLast = 'coding-sam:lastActive' // 'YYYY-MM-DD'
+
+    const today = new Date()
+    const ymd = today.toISOString().slice(0, 10)
+
+    const last = localStorage.getItem(keyLast)
+    const curStreak = parseInt(localStorage.getItem(keyStreak) || '0', 10) || 0
+
+    if (!last) {
+      localStorage.setItem(keyLast, ymd)
+      localStorage.setItem(keyStreak, '1')
+      setStreak(1)
+      return
+    }
+    if (last === ymd) {
+      setStreak(curStreak || 1)
+      return
+    }
+    const lastDate = new Date(last + 'T00:00:00')
+    const diffDays = Math.round((+today - +lastDate) / (1000 * 60 * 60 * 24))
+    const next = diffDays === 1 ? curStreak + 1 : 1
+    localStorage.setItem(keyLast, ymd)
+    localStorage.setItem(keyStreak, String(next))
+    setStreak(next)
+  }, [])
 
   useEffect(() => {
     fetch('/api/problems')
       .then((r) => r.json())
-      .then(setProblems)
+      .then((arr: Problem[]) => setProblems(arr))
       .catch(() => {})
   }, [])
-
-  const primary =
-    'inline-flex items-center justify-center rounded-2xl bg-[#002D56] text-white font-semibold py-3 px-5 shadow-md ring-2 ring-[#002D56] hover:bg-[#002D56]/90 transition'
-  const outline =
-    'inline-flex items-center justify-center rounded-2xl bg-white text-[#002D56] ring-2 ring-[#002D56] py-3 px-5 font-semibold shadow-sm hover:bg-[#002D56]/5'
 
   return (
     <div className="min-h-[100svh] w-full bg-gradient-to-b from-hufs-gray/30 to-white">
@@ -35,58 +73,26 @@ export default function HomeDashboard() {
             <span>환영합니다</span>
             <span>👋</span>
           </h1>
-          <p className="mt-2 text-sm md:text-base text-gray-600">
-            오늘도 한 문제로 실력 +1
-          </p>
+          <p className="mt-2 text-sm md:text-base text-gray-600">오늘도 한 문제로 실력 +1</p>
         </header>
 
-        {/* 히어로 카드 + 스탯 */}
+        {/* 좌: 오늘의 추천 문제(확대 & 추천이유) / 우: 레벨 & 연속출석 */}
         <section className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6 mb-8">
-          <Card className="md:col-span-2">
-            <div className="flex items-start justify-between">
-              <div>
-                <p className="text-sm text-gray-500">오늘의 추천 문제</p>
-                <h3 className="mt-1 text-lg md:text-xl font-bold">
-                  {problems[0]?.title ?? '문제 로딩 중...'}
-                </h3>
-                <p className="mt-1 text-sm text-gray-600">
-                  {problems[0]?.description ?? '잠시만요…'}
-                </p>
-              </div>
-              <div className="hidden md:block">
-                <DifficultyPill level={problems[0]?.difficulty} />
-              </div>
-            </div>
-            <div className="mt-4 flex gap-2">
-              <Link
-                className={primary}
-                href={problems[0] ? `/learn/${problems[0].id}` : '/problems'}
-              >
-                지금 풀기
-              </Link>
-              <Link className={outline} href="/problems">
-                문제 선택
-              </Link>
-            </div>
-          </Card>
+          <div className="md:col-span-2">
+            <RecommendedToday problem={problems[0]} xp={xp} streak={streak} />
+          </div>
 
-          <Card>
-            <p className="text-sm text-gray-500">나의 오늘</p>
-            <div className="mt-2 flex items-center gap-6">
-              <Stat label="연속 학습일" value="3일" />
-              <Stat label="획득 XP" value="120" />
-            </div>
-          </Card>
+          <div className="grid grid-cols-1 gap-4">
+            <LevelCard totalXp={xp} />
+            <StreakCard streakDays={streak} />
+          </div>
         </section>
 
         {/* 추천 문제 그리드 */}
-        <section className="mb-10">
+        <section className="mb-16">
           <div className="flex items-center justify-between mb-3">
-            <h2 className="text-xl font-bold">🔥 추천 문제 모음</h2>
-            <Link
-              href="/problems"
-              className="text-sm text-[#002D56] hover:underline"
-            >
+            <h2 className="text-xl font-bold">추천 문제 모음</h2>
+            <Link href="/problems" className="text-sm text-[#002D56] hover:underline">
               전체보기
             </Link>
           </div>
@@ -96,54 +102,12 @@ export default function HomeDashboard() {
             ))}
           </div>
         </section>
-
-        {/* AI 튜터 CTA */}
-        <section id="tutor" className="mb-16">
-          <Card className="bg-gradient-to-r from-hufs-green/15 to-hufs-gray/20 ring-0">
-            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-              <div>
-                <h3 className="text-lg font-bold">AI 튜터에게 바로 물어보기</h3>
-                <p className="text-sm text-gray-600 mt-1">
-                  막히는 코드를 붙여넣고 힌트를 받아보세요.
-                </p>
-              </div>
-              <Link href="/problems" className={primary}>
-                문제 고르기
-              </Link>
-            </div>
-          </Card>
-        </section>
       </div>
     </div>
   )
 }
 
-/* ————— 내부 소형 컴포넌트 ————— */
-
-function Card({
-  children,
-  className = '',
-}: {
-  children: React.ReactNode
-  className?: string
-}) {
-  return (
-    <div
-      className={`rounded-2xl border border-gray-200/70 bg-white/80 backdrop-blur p-5 ring-1 ring-black/5 shadow-sm ${className}`}
-    >
-      {children}
-    </div>
-  )
-}
-
-function Stat({ label, value }: { label: string; value: string }) {
-  return (
-    <div>
-      <div className="text-2xl font-extrabold">{value}</div>
-      <div className="text-xs text-gray-500 mt-1">{label}</div>
-    </div>
-  )
-}
+/* ——— 보조 컴포넌트 (기존 유지) ——— */
 
 function DifficultyPill({ level }: { level?: string }) {
   const color =
@@ -162,19 +126,26 @@ function DifficultyPill({ level }: { level?: string }) {
 }
 
 function ProblemCard({ p }: { p: Problem }) {
+  const pill =
+    p.difficulty === 'Easy'
+      ? 'bg-green-100 text-green-700'
+      : p.difficulty === 'Medium'
+      ? 'bg-yellow-100 text-yellow-700'
+      : p.difficulty === 'Hard'
+      ? 'bg-red-100 text-red-700'
+      : 'bg-gray-100 text-gray-600'
   return (
-    <Card>
-      <div className="flex items-start justify-between">
-        <h3 className="font-semibold">{p.title}</h3>
-        <DifficultyPill level={p.difficulty} />
+    <div className="rounded-2xl border border-gray-200/70 bg-white/80 backdrop-blur p-5 ring-1 ring-black/5 shadow-sm">
+      <div className="flex items-start justify-between gap-4">
+        <h3 className="font-semibold leading-tight">{p.title}</h3>
+        <span className={`px-2.5 py-1 rounded-full text-xs font-semibold ${pill}`}>
+          {p.difficulty}
+        </span>
       </div>
-      <p className="text-sm text-gray-600 mt-1">{p.description}</p>
+      <p className="text-sm text-gray-600 mt-1 line-clamp-3">{p.description}</p>
       <div className="mt-3 flex flex-wrap gap-2">
-        {p.tags?.slice(0, 3).map((t) => (
-          <span
-            key={t}
-            className="text-xs px-2 py-0.5 rounded-full bg-gray-100 text-gray-700"
-          >
+        {p.tags?.slice(0, 4).map((t) => (
+          <span key={t} className="text-xs px-2 py-0.5 rounded-full bg-gray-100 text-gray-700">
             #{t}
           </span>
         ))}
@@ -193,6 +164,6 @@ function ProblemCard({ p }: { p: Problem }) {
           자세히
         </Link>
       </div>
-    </Card>
+    </div>
   )
 }

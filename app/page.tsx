@@ -1,13 +1,58 @@
+// app/page.tsx
 import Image from 'next/image'
 import Link from 'next/link'
+
+const TITLE = 'Coding-Sam'
+
+/** SVG 기반 그라디언트 타이틀 – background-clip:text 버그 회피 */
+function GradientTitle({ text }: { text: string }) {
+  return (
+    <svg
+      role="img"
+      aria-label={text}
+      xmlns="http://www.w3.org/2000/svg"
+      className="block w-full max-w-[820px] h-auto"
+      viewBox="0 0 1000 170"
+      preserveAspectRatio="xMidYMid meet"
+    >
+      <defs>
+        <linearGradient id="csGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+          <stop offset="0%" stopColor="#6b705c" />
+          <stop offset="50%" stopColor="#8D7150" />
+          <stop offset="100%" stopColor="#002D56" />
+          {/* 부드러운 좌→우 이동 */}
+          {/* @ts-ignore React 타입이 animate를 완전하게 커버하지 못하는 경우가 있어 무시합니다. */}
+          <animate attributeName="x1" from="0%" to="100%" dur="8s" repeatCount="indefinite" />
+          {/* @ts-ignore */}
+          <animate attributeName="x2" from="100%" to="200%" dur="8s" repeatCount="indefinite" />
+        </linearGradient>
+      </defs>
+
+      <text
+        x="50%"
+        y="68%"
+        textAnchor="middle"
+        fontFamily="ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial"
+        fontWeight="800"
+        fontSize="120"
+        fill="url(#csGrad)"
+        style={{ paintOrder: 'stroke' }}
+      >
+        {text}
+      </text>
+    </svg>
+  )
+}
 
 export default function Page() {
   return (
     <main className="min-h-[100svh] flex flex-col items-center justify-center text-center p-6">
-      <div className="mb-6">
-        <div className="text-3xl font-black tracking-tight">coding-sam</div>
+      {/* 브랜드 타이틀(SVG) */}
+      <div className="mb-4 sm:mb-6">
+        <GradientTitle text={TITLE} />
       </div>
 
+      {/* 메인 일러스트 */}
       <Image
         src="/Homepage_icon.jpg"
         alt="코딩샘 메인 일러스트"
@@ -17,14 +62,16 @@ export default function Page() {
         className="mb-8 w-[220px] sm:w-[260px] md:w-[320px] h-auto"
       />
 
-      <h1 className="text-2xl sm:text-3xl md:text-4xl font-extrabold leading-tight mb-6">
-        재미있고 효과적인 무료 코딩 공부!
-      </h1>
+      {/* 서브 헤드라인 – 기존 CSS 그라디언트 텍스트 사용 */}
+      <p className="text-2xl sm:text-3xl md:text-4xl font-extrabold leading-tight mb-6">
+        <span className="gradient-text gradient-anim">재미있고 효과적인</span> 무료 코딩 공부!
+      </p>
 
+      {/* CTA */}
       <div className="w-full max-w-[420px] grid gap-3">
         <Link
           href="/home"
-          className="inline-flex items-center justify-center rounded-2xl bg-[#002D56] text-white font-semibold py-4 px-6 shadow-md ring-2 ring-[#002D56] hover:bg-[#002D56]/90 transition"
+          className="pressable inline-flex items-center justify-center rounded-2xl bg-[#002D56] text-white font-semibold py-4 px-6 shadow-md ring-2 ring-[#002D56] hover:bg-[#002D56]/90 transition"
         >
           시작하기
         </Link>
@@ -33,7 +80,7 @@ export default function Page() {
           type="button"
           aria-disabled
           title="로그인 기능은 곧 제공됩니다"
-          className="inline-flex items-center justify-center rounded-2xl bg-white text-[#002D56] ring-2 ring-[#002D56] py-4 px-6 font-semibold shadow-sm hover:bg-[#002D56]/5 cursor-not-allowed"
+          className="pressable inline-flex items-center justify-center rounded-2xl bg-white text-[#002D56] ring-2 ring-[#002D56] py-4 px-6 font-semibold shadow-sm hover:bg-[#002D56]/5 cursor-not-allowed"
         >
           계정이 이미 있습니다
         </button>

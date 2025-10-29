@@ -2,11 +2,73 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Tailwind가 없어도 내용은 보여야 하지만, 없을 경우 최소 폴백 */
+/* Tailwind 없어도 최소 폴백 */
 html, body { height: 100%; }
-body { margin: 0; font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, Apple Color Emoji, Segoe UI Emoji; }
+body{
+  margin:0;
+  font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, Apple Color Emoji, Segoe UI Emoji;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+}
+
+/* -------- 기본 유틸 -------- */
 .h1 { font-size: 2rem; font-weight: 800; }
 .sub { color: #4b5563; }
-.btn-primary { display:inline-flex; align-items:center; justify-content:center; padding:0.75rem 1rem; border-radius: 1rem; background:#22c55e; color:#fff; font-weight:600; }
-.btn-ghost { display:inline-flex; align-items:center; justify-content:center; padding:0.75rem 1rem; border-radius: 1rem; background:#fff; color:#111827; border:1px solid #e5e7eb; font-weight:600; }
-.card { background:#fff; border:1px solid #e5e7eb; border-radius: 1rem; padding:1rem; }
+.btn-primary{
+  display:inline-flex; align-items:center; justify-content:center;
+  padding:0.75rem 1rem; border-radius:1rem; background:#22c55e; color:#fff; font-weight:600;
+}
+.btn-ghost{
+  display:inline-flex; align-items:center; justify-content:center;
+  padding:0.75rem 1rem; border-radius:1rem; background:#fff; color:#111827; border:1px solid #e5e7eb; font-weight:600;
+}
+.card{ background:#fff; border:1px solid #e5e7eb; border-radius:1rem; padding:1rem; }
+
+/* ===== 인터랙티브 타이포 & 액센트 ===== */
+.gradient-text{
+  display:inline-block;
+  background-image: linear-gradient(90deg,#002D56,#8D7150,#146E7A);
+  background-clip:text; -webkit-background-clip:text;
+  color:transparent; -webkit-text-fill-color:transparent;
+  line-height:1;
+  backface-visibility:hidden;
+  transform:translateZ(0);
+  will-change: background-position;
+}
+@supports (-webkit-text-stroke: 1px transparent){
+  .gradient-text{ -webkit-text-stroke: 0.3px transparent; }
+}
+.gradient-anim{ background-size:200% 100%; background-position:0% 50%; }
+@keyframes gradient-x{ 0%{background-position:0% 50%} 100%{background-position:200% 50%} }
+@media (prefers-reduced-motion: no-preference){
+  .gradient-anim{ animation: gradient-x 8s linear infinite; }
+}
+
+.underline-shine{ position:relative; }
+.underline-shine::after{
+  content:""; position:absolute; left:0; bottom:-6px; height:3px; width:0%;
+  background: linear-gradient(90deg,#002D56,#8D7150,#146E7A); transition:width .35s ease;
+}
+.underline-shine:hover::after{ width:100%; }
+
+.pressable{ transition: transform .08s ease, box-shadow .2s ease, background-color .2s ease; }
+.pressable:active{ transform: scale(0.98); }
+
+.focus-outline{ outline:2px solid #002D56; outline-offset:2px; }
+:focus-visible{ outline:2px solid transparent; }
+
+/* 히어로 타이틀 보정 */
+.hero-brand{ letter-spacing:-0.02em; text-shadow:none; }
+
+/* 듀오링고 느낌 아바타(옵션) */
+.squircle{ border-radius:30% 35% 32% 36% / 36% 32% 38% 30%; }
+.avatar-sticker{ box-shadow: 0 0 0 3px #fff, 0 4px 12px rgba(0,0,0,.12); }
+.avatar-bg{ background:linear-gradient(135deg,#27d49b 0%, #146E7A 100%); }
+.cute-filter{ filter:saturate(1.1) brightness(1.06) contrast(1.03); }
+@keyframes bounce-wobble{
+  0%,100%{ transform:translateY(0) rotate(0deg); }
+  30%{ transform:translateY(-2px) rotate(-1deg); }
+  60%{ transform:translateY(1px) rotate(1deg); }
+}
+.duoish-hover:hover{ animation:bounce-wobble .9s ease-in-out; }
