@@ -1,41 +1,40 @@
-# Repository Snapshot (excluding binaries and secrets)
-
-This file consolidates the project structure and the contents of all text source/config files. Excludes: `node_modules`, `.next`, `dist`, `out`, `build`, binary assets (fonts/images only listed), and any `.env*` files.
+# Repository Snapshot (excluding binaries, secrets, .env, node_modules, .next)
 
 ## Directory Tree
 
-```
 app/
-  api/
-    ai/feedback/route.ts
-    problems/route.ts
-    run/route.ts
-  fonts/
-    HUFS-B.ttf
-    HUFS-L.ttf
-    HUFS-M.ttf
+  api/ai/feedback/route.ts
+  api/problems/route.ts
+  api/run/route.ts
   fonts.ts
   globals.css
   home/page.tsx
   layout.tsx
   learn/[id]/page.tsx
+  login/page.tsx
   onboarding/page.tsx
   page.tsx
   problems/page.tsx
+  signup/page.tsx
 components/
   Checklist.tsx
   CodeEditor.tsx
   CTAButtons.tsx
   FeedbackPanel.tsx
+  HeroTitle.tsx
   LanguagePicker.tsx
   LearnWizard.tsx
+  LevelCard.tsx
   NavBar.tsx
   ProblemIO.tsx
   QuestionList.tsx
+  RecommendedToday.tsx
   Stepper.tsx
+  StreakCard.tsx
 data/
   problems.json
 lib/
+  AuthContext.tsx
   openai.ts
   problemsRepo.ts
   reco.ts
@@ -43,16 +42,9 @@ lib/
   utils.ts
 prisma/
   schema.prisma
-public/
-  Homepage_icon.jpg
-  logo.svg
-Dockerfile
-next-env.d.ts
+README.md
 next.config.mjs
 package.json
-package-lock.json
-postcss.config.js
-README.md
 tailwind.config.mjs
 tsconfig.json
 .gitignore

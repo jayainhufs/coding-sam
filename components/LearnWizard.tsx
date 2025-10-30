@@ -49,6 +49,7 @@ export default function LearnWizard({ problem }: { problem: Problem }) {
   // AI
   const [aiLoading, setAiLoading] = useState(false)
   const [aiText, setAiText] = useState('')
+  const [mode, setMode] = useState<'hint' | 'code-suggest' | undefined>(undefined) // ★ 활성 탭 상태
 
   // LocalStorage
   const codeKey = useMemo(() => `code:${problem.id}:${language}`, [problem.id, language])
@@ -132,6 +133,12 @@ export default function LearnWizard({ problem }: { problem: Problem }) {
     } finally {
       setAiLoading(false)
     }
+  }
+
+  // ★ 탭 클릭 시 모드 상태를 바꾸고 요청까지 동시에
+  function requestAI(nextMode: 'hint' | 'code-suggest' | undefined) {
+    setMode(nextMode)
+    askAI(nextMode)
   }
 
   const progress = ((stepIdx + 1) / STEP_ORDER.length) * 100
@@ -298,7 +305,7 @@ export default function LearnWizard({ problem }: { problem: Problem }) {
                 value={stdin}
                 onChange={(e) => setStdin(e.target.value)}
               />
-              <pre className="w-full h-32 rounded-xl border border-slate-200 p-3 bg-slate-50 overflow-auto whitespace-pre-wrap">
+              <pre className="w-full h-32 rounded-xl border border-slate-200 p-3 bg-slate-50 overflow-auto whitespace-pre-wrap break-words">
 {stdout || '실행 결과가 여기에 표시됩니다.'}
               </pre>
             </div>
@@ -326,35 +333,47 @@ export default function LearnWizard({ problem }: { problem: Problem }) {
 
       {/* AI 튜터 카드 — 항상 아래로 배치 */}
       <section className="mt-6 rounded-2xl border border-slate-200 bg-white/90 backdrop-blur p-5 md:p-6 ring-1 ring-black/5 shadow-sm">
-        <div className="flex flex-wrap items-center justify-between gap-3 mb-3">
+        <div className="flex flex-wrap items-center justify-between gap-3">
           <h3 className="text-base md:text-lg font-extrabold">
             AI 튜터 — {STEP_LABEL[step]}
           </h3>
 
-          {/* 세그먼트 버튼 (가로, 직사각형) */}
-          <div className="inline-flex overflow-hidden rounded-lg ring-1 ring-slate-300">
+          {/* 세그먼트 버튼 (활성 상태에 따라 색 변경) */}
+          <div className="inline-flex overflow-hidden rounded-lg ring-1 ring-slate-300" role="tablist" aria-label="AI 요청 모드">
             <button
-              onClick={() => askAI(undefined)}
-              className="px-3.5 py-1.5 text-sm bg-[#0f2a4a] text-white whitespace-nowrap"
+              role="tab"
+              aria-selected={mode === undefined}
+              onClick={() => requestAI(undefined)} // ★
+              className={`px-3.5 py-1.5 text-sm whitespace-nowrap transition
+                ${mode === undefined ? 'bg-[#0f2a4a] text-white' : 'bg-white hover:bg-gray-50 text-slate-700'}`}
             >
               요청
             </button>
             <button
-              onClick={() => askAI('hint')}
-              className="px-3.5 py-1.5 text-sm bg-white hover:bg-gray-50 whitespace-nowrap"
+              role="tab"
+              aria-selected={mode === 'hint'}
+              onClick={() => requestAI('hint')} // ★
+              className={`px-3.5 py-1.5 text-sm whitespace-nowrap transition
+                ${mode === 'hint' ? 'bg-[#0f2a4a] text-white' : 'bg-white hover:bg-gray-50 text-slate-700'}`}
               title="힌트만"
             >
               힌트
             </button>
             <button
-              onClick={() => askAI('code-suggest')}
-              className="px-3.5 py-1.5 text-sm bg-white hover:bg-gray-50 whitespace-nowrap"
+              role="tab"
+              aria-selected={mode === 'code-suggest'}
+              onClick={() => requestAI('code-suggest')} // ★
+              className={`px-3.5 py-1.5 text-sm whitespace-nowrap transition
+                ${mode === 'code-suggest' ? 'bg-[#0f2a4a] text-white' : 'bg-white hover:bg-gray-50 text-slate-700'}`}
               title="짧은 코드/의사코드 제안"
             >
               코드 제안
             </button>
           </div>
         </div>
+
+        {/* ★ 구분선 */}
+        <div className="border-b border-slate-200 my-3" />
 
         <div className="text-sm text-slate-600 mb-3">
           {step === 'understand' && '핵심 요구/제약/엣지케이스를 중심으로 피드백합니다.'}
@@ -364,7 +383,7 @@ export default function LearnWizard({ problem }: { problem: Problem }) {
           {step === 'pseudocode' && '의사코드를 점검하거나 간단 스니펫을 제안합니다.'}
         </div>
 
-        <div className="min-h-[160px] whitespace-pre-wrap leading-7">
+        <div className="min-h-[160px] whitespace-pre-wrap leading-7 break-words">
           {aiLoading ? '생성 중…' : aiText || '오른쪽 상단 버튼으로 피드백을 요청해보세요.'}
         </div>
       </section>
