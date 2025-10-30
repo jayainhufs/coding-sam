@@ -3,30 +3,27 @@
 import Link from 'next/link'
 import Image from 'next/image'
 import { usePathname } from 'next/navigation'
-import { useAuth } from '@/lib/AuthContext' // 1. useAuth 임포트
+import { useAuth } from '@/lib/AuthContext'
 
 const navItems = [
   { href: '/home', label: '대시보드' },
   { href: '/problems', label: '문제' },
-  { href: '/home#tutor', label: 'AI 튜터' },
-]
+] // ✅ 'AI 튜터' 제거
 
-// 2. /signup 페이지도 링크 숨김 경로에 추가
 const HIDE_LINKS_PATHS = new Set<string>(['/', '/home', '/problems', '/login', '/signup'])
 
 export default function NavBar() {
   const pathname = usePathname()
-  const { user, logout } = useAuth() // 3. user와 logout 상태 가져오기
+  const { user, logout } = useAuth()
 
-  // 4. /login 또는 /signup 페이지에서는 링크 숨김
   const showLinks = !HIDE_LINKS_PATHS.has(pathname) && !!user
 
   return (
     <nav className="sticky top-0 z-50 backdrop-blur bg-white/70 border-b border-gray-200/80">
       <div className="mx-auto max-w-6xl px-4 h-14 flex items-center justify-between">
-        {/* === 브랜드 (좌측) === */}
+        {/* 좌측 로고 */}
         <Link
-          href={user ? "/home" : "/"}
+          href={user ? '/home' : '/'}
           className="flex items-center gap-2 sm:gap-2.5 font-extrabold text-[#002D56]"
           aria-label="Coding-Sam 홈으로"
           title="Coding-Sam"
@@ -44,17 +41,15 @@ export default function NavBar() {
           <span>Coding-Sam</span>
         </Link>
 
-        {/* === 우측 영역 === */}
+        {/* 우측 영역 */}
         <div className="flex items-center gap-6">
-          {/* 다른 페이지에서만 우측 링크 노출 */}
+          {/* 네비 링크 (로그인 상태 + 특정 경로 제외) */}
           {showLinks && (
             <div className="hidden md:flex items-center gap-6 text-sm">
               {navItems.map((item) => {
                 const base = 'hover:opacity-80 transition-colors'
                 const active =
-                  item.href === '/home'
-                    ? pathname === '/home'
-                    : pathname.startsWith(item.href.replace(/#.*$/, ''))
+                  item.href === '/home' ? pathname === '/home' : pathname.startsWith(item.href)
                 const cls = active ? `text-[#002D56] font-semibold ${base}` : `text-gray-600 ${base}`
                 return (
                   <Link key={item.href} href={item.href} className={cls}>
@@ -65,12 +60,14 @@ export default function NavBar() {
             </div>
           )}
 
-          {/* 5. 로그인/로그아웃/회원가입 상태 표시 */}
+          {/* 로그인/로그아웃/회원가입 */}
           <div className="text-sm">
             {user ? (
-              // 5a. 로그인 상태
               <div className="flex items-center gap-3">
-                <span className="font-medium text-gray-700 hidden sm:inline">{user}님</span>
+                {/* ✅ 사용자 이름을 배지(pill)로 명확히 구분 */}
+                <span className="hidden sm:inline px-3 py-1 rounded-full bg-[#002D56] text-white font-semibold">
+                  {user}님
+                </span>
                 <button
                   onClick={logout}
                   className="font-semibold text-[#002D56] hover:opacity-80"
@@ -79,22 +76,13 @@ export default function NavBar() {
                 </button>
               </div>
             ) : (
-              // 5b. 로그아웃 상태
-              // 로그인/회원가입 페이지에서는 버튼 숨김
-              (pathname !== '/login' && pathname !== '/signup') && (
+              pathname !== '/login' &&
+              pathname !== '/signup' && (
                 <div className="flex items-center gap-4">
-                  {/* 회원가입 (왼쪽) */}
-                  <Link
-                    href="/signup"
-                    className="font-semibold text-gray-700 hover:text-[#002D56]"
-                  >
+                  <Link href="/signup" className="font-semibold text-gray-700 hover:text-[#002D56]">
                     회원가입
                   </Link>
-                  {/* 로그인 (오른쪽) */}
-                  <Link
-                    href="/login"
-                    className="font-semibold text-[#002D56] hover:opacity-80"
-                  >
+                  <Link href="/login" className="font-semibold text-[#002D56] hover:opacity-80">
                     로그인
                   </Link>
                 </div>
@@ -102,9 +90,7 @@ export default function NavBar() {
             )}
           </div>
         </div>
-
       </div>
     </nav>
   )
 }
-

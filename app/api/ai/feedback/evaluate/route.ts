@@ -1,3 +1,4 @@
+// /app/api/ai/evaluate/route.ts
 import { NextResponse } from 'next/server'
 import { z } from 'zod'
 import { openai } from '@/lib/openai'
@@ -32,27 +33,55 @@ const BodySchema = z.object({
   summary: SummarySchema,
   recent: z.array(RecentItemSchema).optional(),
 
-  // ✅ 페널티 계산용 누적 카운트(이번 제출 포함)
-  aiRequestCount: z.number().int().nonnegative().default(0),
-  hintCount: z.number().int().nonnegative().default(0),
-
-  // ✅ 해결 판정 임계치(최종 평균 기준)
-  solvedThreshold: z.number().min(1).max(100).default(80),
+  // ✅ 추가: 패널티 계산을 위한 카운터(이번 제출 시점 누적)
+  aiRequestCount: z.number().int().nonnegative().default(0), // AI 요청 총합(이번 포함)
+  hintCount: z.number().int().nonnegative().default(0),      // 힌트 사용 총합(요청에 포함이면 0으로)
+  solvedThreshold: z.number().min(1).max(100).default(80),   // (참고용) 정답 처리 기준
 })
 
-// ── 채점 기준 & 점수 향상 가이드(모델 컨텍스트 참고용) ─────────
+// ── 채점 기준 & 점수 향상 가이드 (모델 컨텍스트로만 활용; 출력엔 노출 X) ─────────
 const RUBRIC = `
 [채점 기준(요약) & 점수 향상 가이드]
-① 이해 - 기준: 요구/입력/출력/제약/엣지케이스를 모호함 없이 1문단으로 요약
-② 분해 - 기준: 3~7개의 실행 가능한 하위 단계(관찰 가능한 행동/산출물)
-③ 패턴 인식 - 기준: 제약과 데이터 특성에 맞게 전형 패턴을 근거로 선택
-④ 추상화 - 기준: 불필요한 세부 제거, 입력→처리→출력 흐름과 상태/전이 명확화
-⑤ 의사코드(알고리즘적 사고) - 기준: 순서·분기·반복으로 구현 가능한 절차, 복잡도·불변식 점검
+
+① 이해
+- 기준: 요구/입력/출력/제약/엣지케이스를 모호함 없이 1문단으로 요약
+- 점수 올리는 방법:
+  • 40→60: 입력형/출력형을 구체적 타입/범위로 표기, 최소 2개의 엣지케이스 추가
+  • 60→80: "제약→알고리즘 후보" 연결(예: n≤1e5 → O(n) 필요)
+  • 80→95: 반례 한 줄 설명, 성공/실패 조건을 테스트 문장으로 요약
+
+② 분해
+- 기준: 3~7개의 실행 가능한 하위 단계(관찰 가능한 행동/산출물)
+- 점수 올리는 방법:
+  • 40→60: "입력 파싱→핵심 로직→출력" 3블록으로 최소 분해
+  • 60→80: 각 단계에 입·출력 상태/전이(무엇이 생기고 사라지는지) 명시
+  • 80→95: 단계 간 의존성과 실패지점(예외 처리)을 주석으로 표시
+
+③ 패턴 인식
+- 기준: 제약과 데이터 특성에 맞게 전형 패턴을 근거로 선택
+- 점수 올리는 방법:
+  • 40→60: 후보 2개 제시 + 각 후보의 시간/공간 근거 1줄
+  • 60→80: 반례를 통해 부적합 후보 1개 제거(왜 안 되는지)
+  • 80→95: 최종 패턴의 핵심 불변식·상태 정의 1~2줄
+
+④ 추상화
+- 기준: 불필요한 세부 제거, 입력→처리→출력 흐름과 상태/전이 명확화
+- 점수 올리는 방법:
+  • 40→60: I/O를 표 형태로 정리(이름/타입/범위/예시 1개)
+  • 60→80: 상태 차트(전이: 언제 값이 갱신되는가) 텍스트 다이어그램
+  • 80→95: 경계/빈배열/음수/중복 등 케이스별 처리 분기 명시
+
+⑤ 의사코드(알고리즘적 사고)
+- 기준: 순서·분기·반복으로 구현 가능한 절차, 복잡도·불변식 점검
+- 점수 올리는 방법:
+  • 40→60: 10~20줄 의사코드(입력/출력/변수 선언 + 루프/조건)
+  • 60→80: 루프 불변식 1개와 종료 조건을 주석으로 기술
+  • 80→95: 시간/공간 복잡도 근거 1줄 + 단위 테스트 2줄(입력/기대값)
 `.trim()
 
 // ── 유틸 ──────────────────────────────────────────────────────────────────
 const clamp = (n: number, lo = 0, hi = 100) => Math.max(lo, Math.min(hi, n))
-const average = (nums: number[]) => {
+function average(nums: number[]) {
   const arr = nums.filter((v) => typeof v === 'number')
   if (!arr.length) return 0
   return arr.reduce((a, b) => a + b, 0) / arr.length
@@ -95,7 +124,7 @@ function localFallback(summary: ProfileSummary) {
   ].join('\n')
 }
 
-// ── 프롬프트 생성 ─────────────────────────────────────────────────────────
+// ── 프롬프트 생성 (플레이북 섹션 제거 & 번호 재정렬) ─────────────────────────
 function buildPrompt(summary: ProfileSummary) {
   const avgLine = (Object.entries(summary.avg) as [StepKey, number][])
     .map(([k, v]) => `${LABEL[k]} ${Math.round(v || 0)}점`)
@@ -129,27 +158,18 @@ export async function POST(req: Request) {
     const parsed = BodySchema.parse(await req.json())
     const { summary, aiRequestCount, hintCount, solvedThreshold } = parsed
 
-    // 1) 패널티 전 평균(avgRaw)
+    // ✅ 패널티 전 평균(avgRaw) 계산
     const avgRaw = Math.round(
-      average(
-        Object.values(summary.avg).map((v) => (typeof v === 'number' ? v : 0))
-      )
+      average(Object.values(summary.avg).map((v) => (typeof v === 'number' ? v : 0)))
     )
 
-    // 2) 패널티 적용
+    // ✅ 패널티 계산 및 적용 평균(finalAvg)
     const penaltyUnits = computePenaltyUnits(aiRequestCount, hintCount)
     const finalAvg = clamp(avgRaw - penaltyUnits)
 
-    // 3) 해결 판정 (최종 평균 기준)
+    // (참고) 정답 처리 기준 충족 여부(대시보드 로직에서 쓸 수 있도록 동봉)
     const solvedNow = finalAvg >= solvedThreshold
 
-    // 4) ✅ 시도/해결 카운트 갱신 (여기가 핵심)
-    const attemptsNext = summary.attempts + 1
-    const solvedCountNext = summary.solvedCount + (solvedNow ? 1 : 0)
-    const learningRateNext =
-      attemptsNext > 0 ? Math.round((solvedCountNext / attemptsNext) * 100) : 0
-
-    // 5) 텍스트 응답 생성(모델 실패 시 폴백)
     const prompt = buildPrompt(summary)
 
     try {
@@ -166,35 +186,10 @@ export async function POST(req: Request) {
         ],
       })
       const text = completion.choices[0]?.message?.content?.trim() || '분석 결과를 생성하지 못했습니다.'
-
       return NextResponse.json({
         ok: true,
         text,
-
-        // 점수 메타
-        avgRaw,          // 패널티 전 평균
-        finalAvg,        // 패널티 적용 평균
-        penalty: {
-          rule: 'first AI request free; then -1 per request and -1 per hint',
-          aiRequestCount,
-          hintCount,
-          units: penaltyUnits,
-        },
-        solvedThreshold,
-        solvedNow,
-
-        // ✅ 학습률 계산에 필요한 최신 카운트 제공
-        attempts: attemptsNext,
-        solvedCount: solvedCountNext,
-        learningRate: learningRateNext, // 프런트에서 이 값 바로 써도 됨 (%)
-      })
-    } catch {
-      const text = localFallback(summary)
-      return NextResponse.json({
-        ok: true,
-        text,
-        fallback: true,
-
+        // ✅ 점수 메타(프런트에서 표시/집계에 사용)
         avgRaw,
         finalAvg,
         penalty: {
@@ -205,11 +200,24 @@ export async function POST(req: Request) {
         },
         solvedThreshold,
         solvedNow,
-
-        // ✅ 폴백에도 최신 카운트 포함
-        attempts: attemptsNext,
-        solvedCount: solvedCountNext,
-        learningRate: learningRateNext,
+      })
+    } catch {
+      // 모델 실패 시에도 UX 끊기지 않게 폴백 리포트 + 점수 메타 반환
+      const text = localFallback(summary)
+      return NextResponse.json({
+        ok: true,
+        text,
+        fallback: true,
+        avgRaw,
+        finalAvg,
+        penalty: {
+          rule: 'first AI request free; then -1 per request and -1 per hint',
+          aiRequestCount,
+          hintCount,
+          units: penaltyUnits,
+        },
+        solvedThreshold,
+        solvedNow,
       })
     }
   } catch (err: any) {

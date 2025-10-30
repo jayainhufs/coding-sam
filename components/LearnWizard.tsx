@@ -2,7 +2,16 @@
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
+import { useRouter } from 'next/navigation'
 import CodeEditor, { LanguageKey } from './CodeEditor'
+import {
+  addXP,
+  getProgress as getProgressRec,
+  setProgress,
+  markSolved,
+  type StepScores,
+  type ProblemProgress,
+} from '@/utils/progress'
 
 type Problem = {
   id: string
@@ -25,10 +34,11 @@ const STEP_LABEL: Record<StepKey, string> = {
 }
 
 export default function LearnWizard({ problem }: { problem: Problem }) {
+  const router = useRouter()
   const [stepIdx, setStepIdx] = useState(0)
   const step = STEP_ORDER[stepIdx]
 
-  // 사용자 입력 상태
+  // 사용자 입력
   const [understand, setUnderstand] = useState('')
   const [decompose, setDecompose] = useState('')
   const [pattern, setPattern] = useState('')
@@ -36,7 +46,7 @@ export default function LearnWizard({ problem }: { problem: Problem }) {
   const [abstractOut, setAbstractOut] = useState('')
   const [pseudocode, setPseudocode] = useState('')
 
-  // 코드/러너 상태
+  // 코드/러너
   const [language, setLanguage] = useState<LanguageKey>('python')
   const [codeByLang, setCodeByLang] = useState<Record<LanguageKey, string>>({
     python: '',
@@ -49,9 +59,40 @@ export default function LearnWizard({ problem }: { problem: Problem }) {
   // AI
   const [aiLoading, setAiLoading] = useState(false)
   const [aiText, setAiText] = useState('')
-  const [mode, setMode] = useState<'hint' | 'code-suggest' | undefined>(undefined) // 활성 탭
+  const [mode, setMode] = useState<'hint' | 'code-suggest' | undefined>(undefined)
 
-  // LocalStorage
+  // 제출/학습 결과(페이지 내 표시용)
+  const [submitted, setSubmitted] = useState(false)
+  const [scores, setScores] = useState<StepScores>({})
+  const [avgScore, setAvgScore] = useState<number>(0)
+  const [awardedXP, setAwardedXP] = useState<number>(0)
+
+  // ✅ AI 요청/힌트 카운터(패널티용)
+  const [aiRequestCount, setAiRequestCount] = useState(0)
+  const [hintCount, setHintCount] = useState(0)
+
+  // 문제 바뀌면 카운터/표시 초기화
+  useEffect(() => {
+    setAiRequestCount(0)
+    setHintCount(0)
+    setSubmitted(false)
+    setScores({})
+    setAvgScore(0)
+    setAwardedXP(0)
+  }, [problem.id])
+
+  // 기존 진행 불러오기(있으면 반영)
+  useEffect(() => {
+    const prev = getProgressRec(problem.id) as ProblemProgress | undefined
+    if (!prev) return
+    setSubmitted(true)
+    setScores(prev.scores)
+    const vals = Object.values(prev.scores || {})
+    const prevAvg = vals.length ? Math.round(vals.reduce((a, b) => a + (b ?? 0), 0) / vals.length) : 0
+    setAvgScore(prevAvg)
+  }, [problem.id])
+
+  // 코드 저장 키
   const codeKey = useMemo(() => `code:${problem.id}:${language}`, [problem.id, language])
   useEffect(() => {
     const saved = localStorage.getItem(codeKey)
@@ -99,77 +140,194 @@ export default function LearnWizard({ problem }: { problem: Problem }) {
     run(s.input)
   }
 
-  // ————— AI —————
+  // 프롬프트 빌더(힌트/요청/코드제안)
+  function buildPrompt(step: StepKey, mode: 'hint' | 'code-suggest' | undefined) {
+    const goal = `당신은 코딩을 4단계(문제분해, 패턴 인식, 추상화, 알고리즘적 사고)로 코칭하는 한국어 튜터입니다. 학습자의 사고를 확장시키는 것이 목표입니다.`
+    const base = `
+${goal}
+- 현재 단계에만 집중해서 피드백.
+- 형식: ▷잘한점(0~3) ▷보완점(0~3) ▷다음에 생각할 점(1~2).
+- 너무 긴 설명 금지. 구체적이고 짧게.`.trim()
 
-  // 현재 단계 입력 가져오기
-  function getCurrentInput(): string {
-    if (step === 'understand') return understand
-    if (step === 'decompose') return decompose
-    if (step === 'pattern') return pattern
-    if (step === 'abstract') return `입력:\n${abstractIn}\n\n출력:\n${abstractOut}`
-    return pseudocode // pseudocode
-  }
-
-  // 단계별 “무엇을 적어야 하는지” 가이드 메시지
-  function guidanceForStep(): string {
-    switch (step) {
-      case 'understand':
-        return '이 단계는 핵심 요구/입출력/제약/엣지케이스 중 최소 한 줄을 적은 뒤 요청을 눌러주세요.'
-      case 'decompose':
-        return '이 단계는 하위 단계 3~5개를 bullet 형태로 적은 뒤 요청을 눌러주세요. (예: 입력 파싱 → 상태변수 정의 → 반복/갱신)'
-      case 'pattern':
-        return '이 단계는 적용 가능한 알고리즘/자료구조 1~2개와 선택 근거를 한두 줄 적은 뒤 요청을 눌러주세요. (예: Kadane: 음수 포함 연속합 최적)'
-      case 'abstract':
-        return '이 단계는 입력/출력 정의를 한 줄씩, 그리고 간단한 처리 흐름(입력→처리→출력)을 적은 뒤 요청을 눌러주세요.'
-      case 'pseudocode':
-        return '이 단계는 의사코드 3~5줄(또는 핵심 변수/반복 구조)을 적은 뒤 요청 또는 코드 제안을 눌러주세요.'
-      default:
-        return '간단히 생각을 적은 뒤 요청을 눌러주세요.'
+    const stepGuide: Record<StepKey, string> = {
+      understand: '문제 요구/입출력/제약/엣지케이스를 정확히 요약하도록 코칭하세요.',
+      decompose: '큰 문제를 실행 가능한 하위 단계로 나누는 체크리스트로 코칭하세요.',
+      pattern: '유사 문제/자료구조/알고리즘 패턴을 연결하도록 코칭하세요.',
+      abstract: '입력/출력/핵심 처리 흐름의 본질만 남기도록 코칭하세요.',
+      pseudocode: '짧은 의사코드 점검. 필요 시 간단 스니펫(10~20줄) 제안.',
     }
+
+    const userText =
+      step === 'understand' ? understand :
+      step === 'decompose' ? decompose :
+      step === 'pattern' ? pattern :
+      step === 'abstract' ? `입력:\n${abstractIn}\n\n출력:\n${abstractOut}` :
+      pseudocode
+
+    const hasInput = Boolean(userText.trim())
+
+    if (mode === 'hint') {
+      const head = hasInput ? '아래 학습자 입력을 참고해 ' : '학습자 입력이 비어있습니다. 입력이 없어도 '
+      return `${base}
+${stepGuide[step]}
+${head}해당 단계에 맞는 "힌트만" 2~3개 제시하세요.
+학습자 입력:
+${userText || '(없음)'}`
+    }
+
+    if (mode === 'code-suggest') {
+      if (!hasInput) {
+        return `${base}
+${stepGuide[step]}
+현재 단계의 학습자 입력이 비어있습니다. 먼저 2~3개의 질문으로 생각을 자극한 뒤,
+예시 의사코드(또는 10~20줄 스니펫)를 매우 짧게 제시하세요.`
+      }
+      return `${base}
+${stepGuide[step]}
+학습자 입력을 반영해, 짧은 의사코드 또는 10~20줄 스니펫을 제시하세요.
+학습자 입력:
+${userText}`
+    }
+
+    if (!hasInput) {
+      return `${base}
+${stepGuide[step]}
+현재 입력이 비어있습니다. 이 단계에서 무엇을 쓰면 좋은지 가이드를 3줄 이내로 알려주세요.`
+    }
+    return `${base}
+${stepGuide[step]}
+학습자 입력:
+${userText}`
   }
 
-  // 서버 호출
   async function askAI(nextMode?: 'hint' | 'code-suggest') {
+    setMode(nextMode)
     setAiLoading(true)
     setAiText('')
-
-    const userInput = getCurrentInput()
-
     try {
+      // ✅ 페널티 카운터 증가
+      setAiRequestCount((c) => c + 1)
+      if (nextMode === 'hint') setHintCount((c) => c + 1)
+
+      const prompt = buildPrompt(step, nextMode)
       const r = await fetch('/api/ai/feedback', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           step,
-          userInput,
+          userInput: 'placeholder', // 서버 유효성 회피용
           problem: { id: problem.id, title: problem.title, description: problem.description },
           mode: nextMode,
+          promptOverride: prompt, // 서버가 지원하면 사용, 아니면 무시됨
         }),
       })
       const j = await r.json()
       if (!r.ok) throw new Error(j?.error || 'AI 오류')
-      setAiText(j.text as string)
+      setAiText(j.text || '(임시 응답)\n' + prompt)
     } catch (e: any) {
-      // 백엔드 오류를 그대로 노출하지 않고 사용자 친화적 메시지 제공
-      setAiText(`요청을 처리하지 못했습니다. 잠시 후 다시 시도해 주세요.`)
+      setAiText(`AI 서버 오류: ${e.message}`)
     } finally {
       setAiLoading(false)
     }
   }
 
-  // 버튼 클릭 진입점: 입력 검증 + 모드 세팅 + 요청
-  function requestAI(nextMode: 'hint' | 'code-suggest' | undefined) {
-    setMode(nextMode)
+  // 점수 산정(간단 휴리스틱)
+  function scoreOf(text: string, keywords: string[]) {
+    if (!text.trim()) return 0
+    let s = 40
+    const t = text.toLowerCase()
+    for (const k of keywords) if (t.includes(k)) s += 12
+    return Math.min(100, s)
+  }
 
-    const requiresInput = nextMode !== 'hint' // 요청/코드제안은 입력 필요, 힌트는 불필요
-    const current = getCurrentInput().trim()
+  // 단계별 점수 → 약점/강점(Top2)
+  function rankSteps(s: StepScores, topN = 2): { weakest: StepKey[]; strength: StepKey[] } {
+    const entries = (Object.entries(s) as Array<[StepKey, number]>).filter(([, v]) => typeof v === 'number')
+    entries.sort((a, b) => a[1] - b[1])
+    const weakest = entries.slice(0, topN).map(([k]) => k)
+    const strength = entries.slice(-topN).reverse().map(([k]) => k)
+    return { weakest, strength }
+  }
 
-    if (requiresInput && current.length === 0) {
-      // 친절한 단계별 가이드 출력(서버 호출 안 함)
-      setAiText(guidanceForStep())
+  // ✅ 제출 → 서버 평가(/api/ai/evaluate) → 진행 저장/XP/이동
+  async function handleSubmit() {
+    // 1) 로컬 휴리스틱 점수 (서버에는 summary 형태로 전달)
+    const s: StepScores = {
+      understand: scoreOf(understand, ['입력', '출력', '제약', 'edge', '엣지']),
+      decompose: scoreOf(decompose, ['입력', '파싱', '반복', '점화', '갱신']),
+      pattern: scoreOf(pattern, ['kadane', 'dp', '누적', 'greedy', 'hash']),
+      abstract: scoreOf(`${abstractIn}\n${abstractOut}`, ['입력', '출력', '흐름', '정의']),
+      pseudocode: scoreOf(pseudocode, ['for', 'while', 'max', 'cur', 'best']),
+    }
+    const vals = Object.values(s)
+    const avg = vals.length ? Math.round(vals.reduce((a, b) => a + (b ?? 0), 0) / vals.length) : 0
+    const prev = getProgressRec(problem.id) as ProblemProgress | undefined
+    const attemptsPrev = prev?.attempts ?? 0
+    const solvedPrev = 0 // 로컬 저장에 solvedCount 없으므로 0
+    const { weakest, strength } = rankSteps(s)
+
+    // 2) 서버 평가 호출
+    let data: any
+    try {
+      const res = await fetch('/api/ai/evaluate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          summary: {
+            avg: s,
+            attempts: attemptsPrev,
+            solvedCount: solvedPrev,
+            weakest,
+            strength,
+          },
+          aiRequestCount,            // 패널티: 첫 1회 무료, 이후 -1
+          hintCount,
+          solvedThreshold: 80,
+        }),
+      })
+      data = await res.json()
+      if (!res.ok || !data?.ok) throw new Error(data?.error || '서버 평가 실패')
+    } catch (e: any) {
+      // 서버 실패 시: 기존 로직으로만 저장/XP/이동
+      const attempts = attemptsPrev + 1
+      const rec: ProblemProgress = { scores: s, attempts }
+      setProgress(problem.id, rec)
+      markSolved(problem.id)
+      const bonus = Math.round((avg / 100) * 20)
+      const xp = 30 + bonus
+      addXP(xp)
+      setScores(s)
+      setAvgScore(avg)
+      setAwardedXP(xp)
+      setSubmitted(true)
+      router.push('/home')
       return
     }
-    void askAI(nextMode)
+
+    // 3) 서버 응답 반영
+    const attemptsNext = (typeof data.attempts === 'number') ? data.attempts : attemptsPrev + 1
+    const finalAvg = (typeof data.finalAvg === 'number') ? data.finalAvg : avg
+    const solvedNow = Boolean(data.solvedNow)
+
+    // 4) 진행 저장/XP/마킹
+    const baseProgress: ProblemProgress = { scores: s, attempts: attemptsNext }
+    setProgress(problem.id, baseProgress)
+    if (solvedNow) {
+      markSolved(problem.id)
+    }
+
+    const bonus = Math.round((finalAvg / 100) * 20) // 0~20
+    const xp = 30 + bonus                           // 30~50
+    addXP(xp)
+
+    // 5) 로컬 UI 표시
+    setScores(s)
+    setAvgScore(finalAvg)
+    setAwardedXP(xp)
+    setSubmitted(true)
+
+    // 6) 홈으로 이동
+    router.push('/home')
   }
 
   const progress = ((stepIdx + 1) / STEP_ORDER.length) * 100
@@ -192,7 +350,7 @@ export default function LearnWizard({ problem }: { problem: Problem }) {
         <div className="h-full bg-[#002D56]" style={{ width: `${progress}%` }} />
       </div>
 
-      {/* 탭 */}
+      {/* 단계 탭 */}
       <div className="flex flex-wrap gap-2 mb-6">
         {STEP_ORDER.map((k, i) => (
           <button
@@ -209,18 +367,16 @@ export default function LearnWizard({ problem }: { problem: Problem }) {
         ))}
       </div>
 
-      {/* 메인 작성 카드 (단일 컬럼) */}
+      {/* 메인 카드 */}
       <section className="rounded-2xl border border-slate-200 bg-white/90 backdrop-blur p-5 md:p-6 ring-1 ring-black/5 shadow-sm">
         {step === 'understand' && (
           <>
             <h2 className="text-lg md:text-xl font-bold mb-2">1) 문제 이해하기</h2>
-            <p className="text-sm text-slate-600 mb-3">
-              문제가 원하는 것을 한 문장으로 요약해보세요.
-            </p>
+            <p className="text-sm text-slate-600 mb-3">문제가 원하는 것을 한 문장으로 요약해보세요.</p>
             <textarea
               rows={10}
               className="w-full h-[220px] rounded-xl border border-slate-300 p-3 outline-none focus:ring-2 focus:ring-[#002D56]"
-              placeholder="예) 입력은 n과 길이 n의 정수배열… 출력은 최대 부분합…"
+              placeholder="예) 입력은 n과 배열 nums, 출력은 최대 부분합…"
               value={understand}
               onChange={(e) => setUnderstand(e.target.value)}
             />
@@ -230,13 +386,11 @@ export default function LearnWizard({ problem }: { problem: Problem }) {
         {step === 'decompose' && (
           <>
             <h2 className="text-lg md:text-xl font-bold mb-2">2) 문제 분해하기</h2>
-            <p className="text-sm text-slate-600 mb-3">
-              문제를 해결 가능한 작은 하위 단계로 나눠보세요. 질문의 형태라도 괜찮아요.
-            </p>
+            <p className="text-sm text-slate-600 mb-3">작은 하위 단계 체크리스트로 쪼개보세요.</p>
             <textarea
               rows={10}
               className="w-full h-[220px] rounded-xl border border-slate-300 p-3 outline-none focus:ring-2 focus:ring-[#002D56]"
-              placeholder={`예)\n- 입력 파싱\n- 누적합/DP 점화 정리\n- 반복하면서 최댓값 갱신`}
+              placeholder={`예)\n- 입력 파싱\n- 누적합/DP 점화 정리\n- 반복하며 최댓값 갱신`}
               value={decompose}
               onChange={(e) => setDecompose(e.target.value)}
             />
@@ -246,13 +400,11 @@ export default function LearnWizard({ problem }: { problem: Problem }) {
         {step === 'pattern' && (
           <>
             <h2 className="text-lg md:text-xl font-bold mb-2">3) 패턴 인식하기</h2>
-            <p className="text-sm text-slate-600 mb-3">
-              유사 문제/자료구조/알고리즘 패턴을 연결해보세요.
-            </p>
+            <p className="text-sm text-slate-600 mb-3">유사 문제/자료구조/알고리즘을 연결해보세요.</p>
             <textarea
               rows={10}
               className="w-full h-[220px] rounded-xl border border-slate-300 p-3 outline-none focus:ring-2 focus:ring-[#002D56]"
-              placeholder="예) 부분합 최대 → Kadane 패턴(현재 연속합 음수면 리셋, 전역 최댓값 갱신)…"
+              placeholder="예) Kadane 패턴: cur = max(x, cur+x); best = max(best, cur)"
               value={pattern}
               onChange={(e) => setPattern(e.target.value)}
             />
@@ -262,24 +414,24 @@ export default function LearnWizard({ problem }: { problem: Problem }) {
         {step === 'abstract' && (
           <>
             <h2 className="text-lg md:text-xl font-bold mb-2">4) 추상화하기</h2>
-            <p className="text-sm text-slate-600 mb-3">입력/출력/처리 흐름을 명확히 정의하세요.</p>
+            <p className="text-sm text-slate-600 mb-3">입력/출력/핵심 흐름을 명확히.</p>
             <div className="grid md:grid-cols-2 gap-3">
               <div>
                 <label className="text-xs text-slate-500">입력</label>
                 <textarea
                   rows={8}
                   className="mt-1 w-full h-[200px] rounded-xl border border-slate-300 p-3 outline-none focus:ring-2 focus:ring-[#002D56]"
-                  placeholder="예) 입력: 정수 배열 nums"
+                  placeholder="예) n: 정수, nums: 길이 n의 정수 배열"
                   value={abstractIn}
                   onChange={(e) => setAbstractIn(e.target.value)}
                 />
               </div>
               <div>
-                <label className="text-xs text-slate-500">출력 </label>
+                <label className="text-xs text-slate-500">출력</label>
                 <textarea
                   rows={8}
                   className="mt-1 w-full h-[200px] rounded-xl border border-slate-300 p-3 outline-none focus:ring-2 focus:ring-[#002D56]"
-                  placeholder="예) 최대 연속 합 (현재까지의 합을 누적해 최대값 갱신)"
+                  placeholder="예) 최대 연속 부분합 값"
                   value={abstractOut}
                   onChange={(e) => setAbstractOut(e.target.value)}
                 />
@@ -291,14 +443,11 @@ export default function LearnWizard({ problem }: { problem: Problem }) {
         {step === 'pseudocode' && (
           <>
             <h2 className="text-lg md:text-xl font-bold mb-2">5) 의사코드 → 코드/실행</h2>
-            <p className="text-sm text-slate-600 mb-3">
-              먼저 의사코드를 정리한 뒤, 아래 코드 에디터에서 구현/실행해보세요.
-            </p>
-
+            <p className="text-sm text-slate-600 mb-3">의사코드를 정리하고 아래에서 실행.</p>
             <textarea
               rows={8}
               className="w-full h-[200px] rounded-xl border border-slate-300 p-3 outline-none focus:ring-2 focus:ring-[#002D56] mb-4"
-              placeholder={`예)\n- cur=0, best=-INF\n- 각 원소 x에 대해: cur = max(x, cur+x); best = max(best, cur)\n- best 출력`}
+              placeholder={`예)\n- cur=0, best=-INF\n- 각 x에 대해 cur=max(x,cur+x); best=max(best,cur)\n- best 출력`}
               value={pseudocode}
               onChange={(e) => setPseudocode(e.target.value)}
             />
@@ -310,17 +459,13 @@ export default function LearnWizard({ problem }: { problem: Problem }) {
                   key={l}
                   onClick={() => setLanguage(l)}
                   className={`px-3 py-1.5 rounded-full border text-sm ${
-                    l === language
-                      ? 'bg-[#296B75] text-white border-[#296B75]'
-                      : 'bg-white text-slate-700 border-slate-300 hover:bg-gray-50'
+                    l === language ? 'bg-[#296B75] text-white border-[#296B75]' : 'bg-white text-slate-700 border-slate-300 hover:bg-gray-50'
                   }`}
                 >
                   {l.toUpperCase()}
                 </button>
               ))}
-              <div className="ml-auto text-xs md:text-sm text-slate-500">
-                VSCode 스타일 하이라이트
-              </div>
+              <div className="ml-auto text-xs md:text-sm text-slate-500">VSCode 스타일 하이라이트</div>
             </div>
 
             <CodeEditor language={language} code={codeByLang[language] ?? ''} onChange={updateCode} />
@@ -336,54 +481,32 @@ export default function LearnWizard({ problem }: { problem: Problem }) {
 {stdout || '실행 결과가 여기에 표시됩니다.'}
               </pre>
             </div>
-
-            <div className="mt-3 flex flex-wrap gap-3">
-              <button
-                onClick={() => run()}
-                className="px-4 py-2 rounded-xl bg-[#002D56] text-white hover:bg-[#002D56]/90"
-              >
-                내 입력 실행
-              </button>
-              {problem.samples?.map((_, i) => (
-                <button
-                  key={i}
-                  onClick={() => runSample(i)}
-                  className="px-4 py-2 rounded-xl bg-white text-[#002D56] ring-2 ring-[#002D56] hover:bg-[#002D56]/5"
-                >
-                  예시 실행 {i + 1}
-                </button>
-              ))}
-            </div>
           </>
         )}
       </section>
 
-      {/* AI 튜터 카드 — 항상 아래로 배치 */}
+      {/* AI 튜터 카드 — 아래 고정 */}
       <section className="mt-6 rounded-2xl border border-slate-200 bg-white/90 backdrop-blur p-5 md:p-6 ring-1 ring-black/5 shadow-sm">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <h3 className="text-base md:text-lg font-extrabold">AI 튜터 — {STEP_LABEL[step]}</h3>
-
-          {/* 세그먼트 버튼 */}
-          <div className="inline-flex overflow-hidden rounded-lg ring-1 ring-slate-300" role="tablist" aria-label="AI 요청 모드">
+          <div className="inline-flex overflow-hidden rounded-lg ring-1 ring-slate-300" role="tablist">
             <button
               role="tab"
               aria-selected={mode === undefined}
-              onClick={() => requestAI(undefined)}
-              disabled={aiLoading}
+              onClick={() => askAI(undefined)}
               className={`px-3.5 py-1.5 text-sm whitespace-nowrap transition ${
                 mode === undefined ? 'bg-[#0f2a4a] text-white' : 'bg-white hover:bg-gray-50 text-slate-700'
-              } ${aiLoading ? 'opacity-60 cursor-not-allowed' : ''}`}
+              }`}
             >
               요청
             </button>
             <button
               role="tab"
               aria-selected={mode === 'hint'}
-              onClick={() => requestAI('hint')}
-              disabled={aiLoading}
+              onClick={() => askAI('hint')}
               className={`px-3.5 py-1.5 text-sm whitespace-nowrap transition ${
                 mode === 'hint' ? 'bg-[#0f2a4a] text-white' : 'bg-white hover:bg-gray-50 text-slate-700'
-              } ${aiLoading ? 'opacity-60 cursor-not-allowed' : ''}`}
+              }`}
               title="힌트만"
             >
               힌트
@@ -391,11 +514,10 @@ export default function LearnWizard({ problem }: { problem: Problem }) {
             <button
               role="tab"
               aria-selected={mode === 'code-suggest'}
-              onClick={() => requestAI('code-suggest')}
-              disabled={aiLoading}
+              onClick={() => askAI('code-suggest')}
               className={`px-3.5 py-1.5 text-sm whitespace-nowrap transition ${
                 mode === 'code-suggest' ? 'bg-[#0f2a4a] text-white' : 'bg-white hover:bg-gray-50 text-slate-700'
-              } ${aiLoading ? 'opacity-60 cursor-not-allowed' : ''}`}
+              }`}
               title="짧은 코드/의사코드 제안"
             >
               코드 제안
@@ -403,7 +525,6 @@ export default function LearnWizard({ problem }: { problem: Problem }) {
           </div>
         </div>
 
-        {/* 구분선 */}
         <div className="border-b border-slate-200 my-3" />
 
         <div className="text-sm text-slate-600 mb-3">
@@ -414,8 +535,7 @@ export default function LearnWizard({ problem }: { problem: Problem }) {
           {step === 'pseudocode' && '의사코드를 점검하거나 간단 스니펫을 제안합니다.'}
         </div>
 
-        {/* 안내/결과 영역 (접근성: 화면리더 즉시 읽기) */}
-        <div className="min-h-[160px] whitespace-pre-wrap leading-7 break-words" aria-live="polite">
+        <div className="min-h-[160px] whitespace-pre-wrap leading-7 break-words">
           {aiLoading ? '생성 중…' : aiText || '오른쪽 상단 버튼으로 피드백을 요청해보세요.'}
         </div>
       </section>
@@ -429,13 +549,22 @@ export default function LearnWizard({ problem }: { problem: Problem }) {
         >
           이전
         </button>
-        <button
-          onClick={() => setStepIdx((i) => Math.min(STEP_ORDER.length - 1, i + 1))}
-          className="px-5 py-2.5 rounded-xl bg-[#296B75] text-white hover:bg-[#296B75]/90 disabled:opacity-50"
-          disabled={stepIdx === STEP_ORDER.length - 1}
-        >
-          다음
-        </button>
+
+        {step === 'pseudocode' ? (
+          <button
+            onClick={handleSubmit}
+            className="px-5 py-2.5 rounded-xl bg-[#296B75] text-white hover:bg-[#296B75]/90"
+          >
+            제출
+          </button>
+        ) : (
+          <button
+            onClick={() => setStepIdx((i) => Math.min(STEP_ORDER.length - 1, i + 1))}
+            className="px-5 py-2.5 rounded-xl bg-[#296B75] text-white hover:bg-[#296B75]/90 disabled:opacity-50"
+          >
+            다음
+          </button>
+        )}
       </div>
     </main>
   )
