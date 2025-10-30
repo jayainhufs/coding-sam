@@ -49,7 +49,7 @@ export default function LearnWizard({ problem }: { problem: Problem }) {
   // AI
   const [aiLoading, setAiLoading] = useState(false)
   const [aiText, setAiText] = useState('')
-  const [mode, setMode] = useState<'hint' | 'code-suggest' | undefined>(undefined) // ★ 활성 탭 상태
+  const [mode, setMode] = useState<'hint' | 'code-suggest' | undefined>(undefined) // 활성 탭
 
   // LocalStorage
   const codeKey = useMemo(() => `code:${problem.id}:${language}`, [problem.id, language])
@@ -99,20 +99,41 @@ export default function LearnWizard({ problem }: { problem: Problem }) {
     run(s.input)
   }
 
-  // AI
-  async function askAI(mode?: 'hint' | 'code-suggest') {
+  // ————— AI —————
+
+  // 현재 단계 입력 가져오기
+  function getCurrentInput(): string {
+    if (step === 'understand') return understand
+    if (step === 'decompose') return decompose
+    if (step === 'pattern') return pattern
+    if (step === 'abstract') return `입력:\n${abstractIn}\n\n출력:\n${abstractOut}`
+    return pseudocode // pseudocode
+  }
+
+  // 단계별 “무엇을 적어야 하는지” 가이드 메시지
+  function guidanceForStep(): string {
+    switch (step) {
+      case 'understand':
+        return '이 단계는 핵심 요구/입출력/제약/엣지케이스 중 최소 한 줄을 적은 뒤 요청을 눌러주세요.'
+      case 'decompose':
+        return '이 단계는 하위 단계 3~5개를 bullet 형태로 적은 뒤 요청을 눌러주세요. (예: 입력 파싱 → 상태변수 정의 → 반복/갱신)'
+      case 'pattern':
+        return '이 단계는 적용 가능한 알고리즘/자료구조 1~2개와 선택 근거를 한두 줄 적은 뒤 요청을 눌러주세요. (예: Kadane: 음수 포함 연속합 최적)'
+      case 'abstract':
+        return '이 단계는 입력/출력 정의를 한 줄씩, 그리고 간단한 처리 흐름(입력→처리→출력)을 적은 뒤 요청을 눌러주세요.'
+      case 'pseudocode':
+        return '이 단계는 의사코드 3~5줄(또는 핵심 변수/반복 구조)을 적은 뒤 요청 또는 코드 제안을 눌러주세요.'
+      default:
+        return '간단히 생각을 적은 뒤 요청을 눌러주세요.'
+    }
+  }
+
+  // 서버 호출
+  async function askAI(nextMode?: 'hint' | 'code-suggest') {
     setAiLoading(true)
     setAiText('')
-    const userInput =
-      step === 'understand'
-        ? understand
-        : step === 'decompose'
-        ? decompose
-        : step === 'pattern'
-        ? pattern
-        : step === 'abstract'
-        ? `입력:\n${abstractIn}\n\n출력:\n${abstractOut}`
-        : pseudocode
+
+    const userInput = getCurrentInput()
 
     try {
       const r = await fetch('/api/ai/feedback', {
@@ -122,23 +143,33 @@ export default function LearnWizard({ problem }: { problem: Problem }) {
           step,
           userInput,
           problem: { id: problem.id, title: problem.title, description: problem.description },
-          mode,
+          mode: nextMode,
         }),
       })
       const j = await r.json()
       if (!r.ok) throw new Error(j?.error || 'AI 오류')
       setAiText(j.text as string)
     } catch (e: any) {
-      setAiText(`AI 서버 오류: ${e.message}`)
+      // 백엔드 오류를 그대로 노출하지 않고 사용자 친화적 메시지 제공
+      setAiText(`요청을 처리하지 못했습니다. 잠시 후 다시 시도해 주세요.`)
     } finally {
       setAiLoading(false)
     }
   }
 
-  // ★ 탭 클릭 시 모드 상태를 바꾸고 요청까지 동시에
+  // 버튼 클릭 진입점: 입력 검증 + 모드 세팅 + 요청
   function requestAI(nextMode: 'hint' | 'code-suggest' | undefined) {
     setMode(nextMode)
-    askAI(nextMode)
+
+    const requiresInput = nextMode !== 'hint' // 요청/코드제안은 입력 필요, 힌트는 불필요
+    const current = getCurrentInput().trim()
+
+    if (requiresInput && current.length === 0) {
+      // 친절한 단계별 가이드 출력(서버 호출 안 함)
+      setAiText(guidanceForStep())
+      return
+    }
+    void askAI(nextMode)
   }
 
   const progress = ((stepIdx + 1) / STEP_ORDER.length) * 100
@@ -216,7 +247,7 @@ export default function LearnWizard({ problem }: { problem: Problem }) {
           <>
             <h2 className="text-lg md:text-xl font-bold mb-2">3) 패턴 인식하기</h2>
             <p className="text-sm text-slate-600 mb-3">
-              기억나는 유사 문제/자료구조/알고리즘들을 연결해서 어떻게 해결할지 적어봅시다.
+              유사 문제/자료구조/알고리즘 패턴을 연결해보세요.
             </p>
             <textarea
               rows={10}
@@ -231,7 +262,7 @@ export default function LearnWizard({ problem }: { problem: Problem }) {
         {step === 'abstract' && (
           <>
             <h2 className="text-lg md:text-xl font-bold mb-2">4) 추상화하기</h2>
-            <p className="text-sm text-slate-600 mb-3">불필요한 정보 대신 입력/출력 흐름을 정리하세요.</p>
+            <p className="text-sm text-slate-600 mb-3">입력/출력/처리 흐름을 명확히 정의하세요.</p>
             <div className="grid md:grid-cols-2 gap-3">
               <div>
                 <label className="text-xs text-slate-500">입력</label>
@@ -292,11 +323,7 @@ export default function LearnWizard({ problem }: { problem: Problem }) {
               </div>
             </div>
 
-            <CodeEditor
-              language={language}
-              code={codeByLang[language] ?? ''}
-              onChange={updateCode}
-            />
+            <CodeEditor language={language} code={codeByLang[language] ?? ''} onChange={updateCode} />
 
             <div className="grid md:grid-cols-2 gap-3 mt-4">
               <textarea
@@ -334,27 +361,29 @@ export default function LearnWizard({ problem }: { problem: Problem }) {
       {/* AI 튜터 카드 — 항상 아래로 배치 */}
       <section className="mt-6 rounded-2xl border border-slate-200 bg-white/90 backdrop-blur p-5 md:p-6 ring-1 ring-black/5 shadow-sm">
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <h3 className="text-base md:text-lg font-extrabold">
-            AI 튜터 — {STEP_LABEL[step]}
-          </h3>
+          <h3 className="text-base md:text-lg font-extrabold">AI 튜터 — {STEP_LABEL[step]}</h3>
 
-          {/* 세그먼트 버튼 (활성 상태에 따라 색 변경) */}
+          {/* 세그먼트 버튼 */}
           <div className="inline-flex overflow-hidden rounded-lg ring-1 ring-slate-300" role="tablist" aria-label="AI 요청 모드">
             <button
               role="tab"
               aria-selected={mode === undefined}
-              onClick={() => requestAI(undefined)} // ★
-              className={`px-3.5 py-1.5 text-sm whitespace-nowrap transition
-                ${mode === undefined ? 'bg-[#0f2a4a] text-white' : 'bg-white hover:bg-gray-50 text-slate-700'}`}
+              onClick={() => requestAI(undefined)}
+              disabled={aiLoading}
+              className={`px-3.5 py-1.5 text-sm whitespace-nowrap transition ${
+                mode === undefined ? 'bg-[#0f2a4a] text-white' : 'bg-white hover:bg-gray-50 text-slate-700'
+              } ${aiLoading ? 'opacity-60 cursor-not-allowed' : ''}`}
             >
               요청
             </button>
             <button
               role="tab"
               aria-selected={mode === 'hint'}
-              onClick={() => requestAI('hint')} // ★
-              className={`px-3.5 py-1.5 text-sm whitespace-nowrap transition
-                ${mode === 'hint' ? 'bg-[#0f2a4a] text-white' : 'bg-white hover:bg-gray-50 text-slate-700'}`}
+              onClick={() => requestAI('hint')}
+              disabled={aiLoading}
+              className={`px-3.5 py-1.5 text-sm whitespace-nowrap transition ${
+                mode === 'hint' ? 'bg-[#0f2a4a] text-white' : 'bg-white hover:bg-gray-50 text-slate-700'
+              } ${aiLoading ? 'opacity-60 cursor-not-allowed' : ''}`}
               title="힌트만"
             >
               힌트
@@ -362,9 +391,11 @@ export default function LearnWizard({ problem }: { problem: Problem }) {
             <button
               role="tab"
               aria-selected={mode === 'code-suggest'}
-              onClick={() => requestAI('code-suggest')} // ★
-              className={`px-3.5 py-1.5 text-sm whitespace-nowrap transition
-                ${mode === 'code-suggest' ? 'bg-[#0f2a4a] text-white' : 'bg-white hover:bg-gray-50 text-slate-700'}`}
+              onClick={() => requestAI('code-suggest')}
+              disabled={aiLoading}
+              className={`px-3.5 py-1.5 text-sm whitespace-nowrap transition ${
+                mode === 'code-suggest' ? 'bg-[#0f2a4a] text-white' : 'bg-white hover:bg-gray-50 text-slate-700'
+              } ${aiLoading ? 'opacity-60 cursor-not-allowed' : ''}`}
               title="짧은 코드/의사코드 제안"
             >
               코드 제안
@@ -372,7 +403,7 @@ export default function LearnWizard({ problem }: { problem: Problem }) {
           </div>
         </div>
 
-        {/* ★ 구분선 */}
+        {/* 구분선 */}
         <div className="border-b border-slate-200 my-3" />
 
         <div className="text-sm text-slate-600 mb-3">
@@ -383,7 +414,8 @@ export default function LearnWizard({ problem }: { problem: Problem }) {
           {step === 'pseudocode' && '의사코드를 점검하거나 간단 스니펫을 제안합니다.'}
         </div>
 
-        <div className="min-h-[160px] whitespace-pre-wrap leading-7 break-words">
+        {/* 안내/결과 영역 (접근성: 화면리더 즉시 읽기) */}
+        <div className="min-h-[160px] whitespace-pre-wrap leading-7 break-words" aria-live="polite">
           {aiLoading ? '생성 중…' : aiText || '오른쪽 상단 버튼으로 피드백을 요청해보세요.'}
         </div>
       </section>
