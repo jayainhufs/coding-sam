@@ -1,6 +1,6 @@
 // app/page.tsx
-import Image from 'next/image'
-import Link from 'next/link'
+// import Image from 'next/image' // 1. 프리뷰 환경 오류로 인해 Image 컴포넌트 대신 <img> 사용
+// import Link from 'next/link'   // 2. 프리뷰 환경 오류로 인해 Link 컴포넌트 대신 <a> 사용
 
 const TITLE = 'Coding-Sam'
 
@@ -53,12 +53,12 @@ export default function Page() {
       </div>
 
       {/* 메인 일러스트 */}
-      <Image
+      {/* 3. <Image>를 <img> 태그로 변경 (priority 속성 제거) */}
+      <img
         src="/Homepage_icon.jpg"
         alt="코딩샘 메인 일러스트"
         width={320}
         height={320}
-        priority
         className="mb-8 w-[220px] sm:w-[260px] md:w-[320px] h-auto"
       />
 
@@ -69,22 +69,23 @@ export default function Page() {
 
       {/* CTA */}
       <div className="w-full max-w-[420px] grid gap-3">
-        <Link
-          href="/home"
+        {/* 4. <Link>를 <a> 태그로 변경 */}
+        <a
+          href="/signup"
           className="pressable inline-flex items-center justify-center rounded-2xl bg-[#002D56] text-white font-semibold py-4 px-6 shadow-md ring-2 ring-[#002D56] hover:bg-[#002D56]/90 transition"
         >
           시작하기
-        </Link>
+        </a>
 
-        <button
-          type="button"
-          aria-disabled
-          title="로그인 기능은 곧 제공됩니다"
-          className="pressable inline-flex items-center justify-center rounded-2xl bg-white text-[#002D56] ring-2 ring-[#002D56] py-4 px-6 font-semibold shadow-sm hover:bg-[#002D56]/5 cursor-not-allowed"
+        {/* 5. <Link>를 <a> 태그로 변경 */}
+        <a
+          href="/login"
+          className="pressable inline-flex items-center justify-center rounded-2xl bg-white text-[#002D56] ring-2 ring-[#002D56] py-4 px-6 font-semibold shadow-sm hover:bg-[#002D56]/5"
         >
           계정이 이미 있습니다
-        </button>
+        </a>
       </div>
     </main>
   )
 }
+
