@@ -23,7 +23,6 @@ type Problem = {
 }
 
 type StepKey = 'understand' | 'decompose' | 'pattern' | 'abstract' | 'pseudocode'
-
 const STEP_ORDER: StepKey[] = ['understand', 'decompose', 'pattern', 'abstract', 'pseudocode']
 const STEP_LABEL: Record<StepKey, string> = {
   understand: '이해',
@@ -33,10 +32,147 @@ const STEP_LABEL: Record<StepKey, string> = {
   pseudocode: '의사코드 → 코드/실행',
 }
 
+/* ------------------ 문제별 예시 템플릿 ------------------ */
+type Templates = {
+  understand: string
+  decompose: string
+  pattern: string
+  abstractInPh: string
+  abstractOutPh: string
+  pseudocode: string
+}
+
+function templatesFor(problemId: string): Templates {
+  if (problemId === 'max-subarray') {
+    return {
+      understand:
+`[요약 1문단]
+- 입력: n(정수), nums(길이 n 정수배열)
+- 출력: 최대 "연속" 부분배열의 합(정수)
+- 제약: 1 ≤ n ≤ 1e5, |nums[i]| ≤ 1e4 → O(n) 필요
+- 엣지: 전부 음수 / 전부 양수 / n=1 / 큰 n
+- 반례(1줄): [-1,-2]의 정답은 -1 (0 아님)`,
+      decompose:
+`[3~7단계, 각 단계에 상태 전이 주석]
+1) 입력 파싱 → nums 준비
+2) 핵심 로직(Kadane 후보)
+   - 상태: cur(현재 연속합), best(최대합)
+   - 전이: cur = max(x, cur + x); best = max(best, cur)
+   - 실패지점: 비어있는 입력 등 예외 처리
+3) 결과 출력 → best`,
+      pattern:
+`[후보 2개 + 채택근거]
+- 후보A: Kadane O(n)/O(1) ✅ 제약(n≤1e5)에 부합
+- 후보B: Prefix-sum + 모든 구간 탐색 O(n^2) ❌ 시간 초과
+- 불변식: best는 i까지의 부분배열 최대합, cur는 i에서 끝나는 최대합`,
+      abstractInPh: `I/O(입력)
+- 이름: nums  | 타입: int[] | 범위: |nums[i]|≤1e4 | 예: [-2,1,-3,4,-1,2,1,-5,4]
+- 이름: n     | 타입: int   | 범위: 1≤n≤1e5     | 예: 9`,
+      abstractOutPh: `O(출력)
+- 이름: answer | 타입: int | 정의: 최대 연속 부분합
+- 상태 전이(텍스트 차트):
+  시작: cur=0,best=-∞
+  각 x: cur=max(x,cur+x) → best=max(best,cur)
+  종료: best 반환
+- 경계: n=1, 전부 음수, 매우 큰 n`,
+      pseudocode:
+`// 10~20줄 + 불변식 + 복잡도 + 단위테스트
+best = -INF; cur = 0
+for x in nums:
+  // 불변식: cur는 "x에서 끝나는" 최대 연속합
+  cur = max(x, cur + x)
+  best = max(best, cur)
+print(best)
+// 시간/공간: O(n)/O(1)
+// 단위 테스트:
+# [−1] -> −1
+# [−2,1] -> 1`,
+    }
+  }
+
+  if (problemId === 'two-sum') {
+    return {
+      understand:
+`[요약 1문단]
+- 입력: nums(정수배열), target(정수)
+- 출력: i<j인 두 인덱스(또는 없으면 처리 규칙)
+- 제약: 2 ≤ n ≤ 1e5, |nums[i]| ≤ 1e9 → O(n) 권장
+- 엣지: 같은 값 중복, 해가 여러 개, 해가 없음
+- 반례: nums=[3,3], target=6 → (0,1)`,
+      decompose:
+`[3~7단계, 상태 전이]
+1) 입력 파싱 → nums, target
+2) 핵심 로직(해시맵 1-pass)
+   - 상태: seen(값→인덱스)
+   - 전이: x를 보며 target-x가 seen에 있으면 정답
+   - 실패지점: 해가 없을 때 반환 정책
+3) 결과 출력 → (i,j)`,
+      pattern:
+`[후보 비교]
+- 후보A: HashMap 1-pass O(n)/O(n) ✅
+- 후보B: 정렬+투포인터 O(n log n) (인덱스 유지 추가작업) △
+- 불변식: seen에는 처리한 원소들의 위치가 정확히 저장`,
+      abstractInPh: `I(입력)
+- nums: int[] (중복 가능)   예: [2,7,11,15]
+- target: int               예: 9`,
+      abstractOutPh: `O(출력)
+- indices: (i,j) with i<j
+- 상태 전이:
+  seen={} → x를 보며 need=target-x
+  if need in seen → (seen[need], idx)
+  else seen[x]=idx`,
+      pseudocode:
+`// 1-pass HashMap
+seen = {}
+for i, x in enumerate(nums):
+  need = target - x
+  if need in seen:
+    return [seen[need], i]
+  seen[x] = i
+return []  // 정책에 따라 예외 처리
+// 시간/공간: O(n)/O(n)
+// 단위 테스트:
+# [2,7,11,15], 9 -> [0,1]
+# [3,3], 6 -> [0,1]`,
+    }
+  }
+
+  // 기본 템플릿
+  return {
+    understand:
+`[요약 1문단]
+- 입력: 이름/타입/범위
+- 출력: 무엇을, 어떤 형식으로
+- 제약: n의 범위 → 시간/공간 복잡도 추정
+- 엣지: 빈배열/중복/음수/경계
+- 반례(1줄)`,
+    decompose:
+`[3~7단계, 각 단계는 관찰 가능한 행동/산출물]
+1) 입력 파싱
+2) 핵심 로직(상태·전이·예외)
+3) 결과 출력`,
+    pattern:
+`[후보 2개 이상 + 근거]
+- 후보A: (복잡도/메모리/데이터 특성 적합성)
+- 후보B: (왜 부적합인지 반례 1줄)
+- 최종 선택의 불변식/상태 정의`,
+    abstractInPh: `I(입력) — 이름/타입/범위/예시`,
+    abstractOutPh: `O(출력) — 이름/타입/정의 + 상태 전이(텍스트 차트) + 경계`,
+    pseudocode:
+`// 10~20줄 절차 + 주석
+// 불변식/종료조건/복잡도/단위테스트 2줄 포함`,
+  }
+}
+
+/* ------------------ 컴포넌트 ------------------ */
 export default function LearnWizard({ problem }: { problem: Problem }) {
   const router = useRouter()
   const [stepIdx, setStepIdx] = useState(0)
   const step = STEP_ORDER[stepIdx]
+  const T = useMemo(() => templatesFor(problem.id), [problem.id])
+
+  // 설명 접기/펼치기
+  const [descOpen, setDescOpen] = useState(false)
 
   // 사용자 입력
   const [understand, setUnderstand] = useState('')
@@ -61,17 +197,17 @@ export default function LearnWizard({ problem }: { problem: Problem }) {
   const [aiText, setAiText] = useState('')
   const [mode, setMode] = useState<'hint' | 'code-suggest' | undefined>(undefined)
 
-  // 제출/학습 결과(페이지 내 표시용)
+  // 제출/학습 결과
   const [submitted, setSubmitted] = useState(false)
   const [scores, setScores] = useState<StepScores>({})
   const [avgScore, setAvgScore] = useState<number>(0)
   const [awardedXP, setAwardedXP] = useState<number>(0)
 
-  // ✅ AI 요청/힌트 카운터(패널티용)
+  // AI 카운터
   const [aiRequestCount, setAiRequestCount] = useState(0)
   const [hintCount, setHintCount] = useState(0)
 
-  // 문제 바뀌면 카운터/표시 초기화
+  // 문제 바뀌면 초기화
   useEffect(() => {
     setAiRequestCount(0)
     setHintCount(0)
@@ -81,7 +217,7 @@ export default function LearnWizard({ problem }: { problem: Problem }) {
     setAwardedXP(0)
   }, [problem.id])
 
-  // 기존 진행 불러오기(있으면 반영)
+  // 기존 진행 불러오기
   useEffect(() => {
     const prev = getProgressRec(problem.id) as ProblemProgress | undefined
     if (!prev) return
@@ -140,7 +276,7 @@ export default function LearnWizard({ problem }: { problem: Problem }) {
     run(s.input)
   }
 
-  // 프롬프트 빌더(힌트/요청/코드제안)
+  // 프롬프트 빌더
   function buildPrompt(step: StepKey, mode: 'hint' | 'code-suggest' | undefined) {
     const goal = `당신은 코딩을 4단계(문제분해, 패턴 인식, 추상화, 알고리즘적 사고)로 코칭하는 한국어 튜터입니다. 학습자의 사고를 확장시키는 것이 목표입니다.`
     const base = `
@@ -150,11 +286,11 @@ ${goal}
 - 너무 긴 설명 금지. 구체적이고 짧게.`.trim()
 
     const stepGuide: Record<StepKey, string> = {
-      understand: '문제 요구/입출력/제약/엣지케이스를 정확히 요약하도록 코칭하세요.',
-      decompose: '큰 문제를 실행 가능한 하위 단계로 나누는 체크리스트로 코칭하세요.',
-      pattern: '유사 문제/자료구조/알고리즘 패턴을 연결하도록 코칭하세요.',
-      abstract: '입력/출력/핵심 처리 흐름의 본질만 남기도록 코칭하세요.',
-      pseudocode: '짧은 의사코드 점검. 필요 시 간단 스니펫(10~20줄) 제안.',
+      understand: '요구/입출력/제약/엣지를 모호함 없이 한 문단으로 요약하도록 코칭. 제약→복잡도 연결까지.',
+      decompose: '3~7개의 실행 가능한 하위 단계(입력→핵심→출력). 각 단계의 상태/전이를 한 줄로 명시.',
+      pattern: '후보 2개 이상 비교(시간/공간/데이터 특성). 부적합 후보를 반례로 배제. 최종 불변식 1줄.',
+      abstract: 'I/O를 표처럼 정리하고, 상태 전이(언제 갱신되는가)와 경계 처리 분기를 텍스트로.',
+      pseudocode: '10~20줄 절차 + 불변식/종료조건/복잡도/단위테스트 2줄.',
     }
 
     const userText =
@@ -205,7 +341,6 @@ ${userText}`
     setAiLoading(true)
     setAiText('')
     try {
-      // ✅ 페널티 카운터 증가
       setAiRequestCount((c) => c + 1)
       if (nextMode === 'hint') setHintCount((c) => c + 1)
 
@@ -215,10 +350,10 @@ ${userText}`
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           step,
-          userInput: 'placeholder', // 서버 유효성 회피용
+          userInput: 'placeholder',
           problem: { id: problem.id, title: problem.title, description: problem.description },
           mode: nextMode,
-          promptOverride: prompt, // 서버가 지원하면 사용, 아니면 무시됨
+          promptOverride: prompt,
         }),
       })
       const j = await r.json()
@@ -240,7 +375,6 @@ ${userText}`
     return Math.min(100, s)
   }
 
-  // 단계별 점수 → 약점/강점(Top2)
   function rankSteps(s: StepScores, topN = 2): { weakest: StepKey[]; strength: StepKey[] } {
     const entries = (Object.entries(s) as Array<[StepKey, number]>).filter(([, v]) => typeof v === 'number')
     entries.sort((a, b) => a[1] - b[1])
@@ -249,24 +383,22 @@ ${userText}`
     return { weakest, strength }
   }
 
-  // ✅ 제출 → 서버 평가(/api/ai/evaluate) → 진행 저장/XP/이동
+  // 제출
   async function handleSubmit() {
-    // 1) 로컬 휴리스틱 점수 (서버에는 summary 형태로 전달)
     const s: StepScores = {
-      understand: scoreOf(understand, ['입력', '출력', '제약', 'edge', '엣지']),
-      decompose: scoreOf(decompose, ['입력', '파싱', '반복', '점화', '갱신']),
-      pattern: scoreOf(pattern, ['kadane', 'dp', '누적', 'greedy', 'hash']),
-      abstract: scoreOf(`${abstractIn}\n${abstractOut}`, ['입력', '출력', '흐름', '정의']),
-      pseudocode: scoreOf(pseudocode, ['for', 'while', 'max', 'cur', 'best']),
+      understand: scoreOf(understand, ['입력', '출력', '제약', 'edge', '엣지', '반례', 'o(n)']),
+      decompose: scoreOf(decompose, ['입력 파싱', '핵심', '출력', '상태', '전이', '예외']),
+      pattern: scoreOf(pattern, ['후보', '시간', '공간', '반례', '불변식', 'kadane', 'hash']),
+      abstract: scoreOf(`${abstractIn}\n${abstractOut}`, ['입력', '출력', '흐름', '정의', '전이', '경계']),
+      pseudocode: scoreOf(pseudocode, ['for', 'while', 'if', '불변식', '복잡도', '테스트']),
     }
     const vals = Object.values(s)
     const avg = vals.length ? Math.round(vals.reduce((a, b) => a + (b ?? 0), 0) / vals.length) : 0
     const prev = getProgressRec(problem.id) as ProblemProgress | undefined
     const attemptsPrev = prev?.attempts ?? 0
-    const solvedPrev = 0 // 로컬 저장에 solvedCount 없으므로 0
+    const solvedPrev = 0
     const { weakest, strength } = rankSteps(s)
 
-    // 2) 서버 평가 호출
     let data: any
     try {
       const res = await fetch('/api/ai/evaluate', {
@@ -280,7 +412,7 @@ ${userText}`
             weakest,
             strength,
           },
-          aiRequestCount,            // 패널티: 첫 1회 무료, 이후 -1
+          aiRequestCount,
           hintCount,
           solvedThreshold: 80,
         }),
@@ -288,7 +420,6 @@ ${userText}`
       data = await res.json()
       if (!res.ok || !data?.ok) throw new Error(data?.error || '서버 평가 실패')
     } catch (e: any) {
-      // 서버 실패 시: 기존 로직으로만 저장/XP/이동
       const attempts = attemptsPrev + 1
       const rec: ProblemProgress = { scores: s, attempts }
       setProgress(problem.id, rec)
@@ -304,29 +435,22 @@ ${userText}`
       return
     }
 
-    // 3) 서버 응답 반영
     const attemptsNext = (typeof data.attempts === 'number') ? data.attempts : attemptsPrev + 1
     const finalAvg = (typeof data.finalAvg === 'number') ? data.finalAvg : avg
     const solvedNow = Boolean(data.solvedNow)
 
-    // 4) 진행 저장/XP/마킹
     const baseProgress: ProblemProgress = { scores: s, attempts: attemptsNext }
     setProgress(problem.id, baseProgress)
-    if (solvedNow) {
-      markSolved(problem.id)
-    }
+    if (solvedNow) markSolved(problem.id)
 
-    const bonus = Math.round((finalAvg / 100) * 20) // 0~20
-    const xp = 30 + bonus                           // 30~50
+    const bonus = Math.round((finalAvg / 100) * 20)
+    const xp = 30 + bonus
     addXP(xp)
 
-    // 5) 로컬 UI 표시
     setScores(s)
     setAvgScore(finalAvg)
     setAwardedXP(xp)
     setSubmitted(true)
-
-    // 6) 홈으로 이동
     router.push('/home')
   }
 
@@ -342,7 +466,38 @@ ${userText}`
             {stepIdx + 1} / {STEP_ORDER.length} 단계
           </div>
         </div>
-        <p className="text-slate-700 mt-1 text-sm md:text-base">{problem.description}</p>
+
+        {/* 설명 접기/펼치기 */}
+        {problem.description && (
+          <div className="mt-1 relative">
+            <p
+              id="problem-desc"
+              className={[
+                'text-slate-700 text-sm md:text-base transition-all',
+                descOpen ? '' : 'line-clamp-2 pr-16',
+              ].join(' ')}
+            >
+              {problem.description}
+            </p>
+
+            {!descOpen && (
+              <div
+                className="pointer-events-none absolute inset-x-0 bottom-0 h-6 bg-gradient-to-t from-white to-transparent md:from-white/90"
+                aria-hidden
+              />
+            )}
+
+            <button
+              type="button"
+              className="absolute right-0 -bottom-1 text-xs font-semibold text-[#002D56] bg-white/80 px-2 py-0.5 rounded hover:underline"
+              aria-controls="problem-desc"
+              aria-expanded={descOpen}
+              onClick={() => setDescOpen((v) => !v)}
+            >
+              {descOpen ? '접기' : '자세히'}
+            </button>
+          </div>
+        )}
       </div>
 
       {/* 진행바 */}
@@ -371,12 +526,14 @@ ${userText}`
       <section className="rounded-2xl border border-slate-200 bg-white/90 backdrop-blur p-5 md:p-6 ring-1 ring-black/5 shadow-sm">
         {step === 'understand' && (
           <>
-            <h2 className="text-lg md:text-xl font-bold mb-2">1) 문제 이해하기</h2>
-            <p className="text-sm text-slate-600 mb-3">문제가 원하는 것을 한 문장으로 요약해보세요.</p>
+            <h2 className="text-lg md:text-xl font-bold mb-1">1) 문제 이해하기</h2>
+            <p className="text-xs text-slate-600 mb-3">
+              기준: 요구/입출력/제약/엣지케이스를 모호함 없이 1문단. (제약→복잡도 연결, 반례 1줄)
+            </p>
             <textarea
               rows={10}
               className="w-full h-[220px] rounded-xl border border-slate-300 p-3 outline-none focus:ring-2 focus:ring-[#002D56]"
-              placeholder="예) 입력은 n과 배열 nums, 출력은 최대 부분합…"
+              placeholder={T.understand}
               value={understand}
               onChange={(e) => setUnderstand(e.target.value)}
             />
@@ -385,12 +542,14 @@ ${userText}`
 
         {step === 'decompose' && (
           <>
-            <h2 className="text-lg md:text-xl font-bold mb-2">2) 문제 분해하기</h2>
-            <p className="text-sm text-slate-600 mb-3">작은 하위 단계 체크리스트로 쪼개보세요.</p>
+            <h2 className="text-lg md:text-xl font-bold mb-1">2) 문제 분해하기</h2>
+            <p className="text-xs text-slate-600 mb-3">
+              기준: 3~7단계, 각 단계에 입력·출력 상태/전이, 의존성/실패지점 주석.
+            </p>
             <textarea
               rows={10}
               className="w-full h-[220px] rounded-xl border border-slate-300 p-3 outline-none focus:ring-2 focus:ring-[#002D56]"
-              placeholder={`예)\n- 입력 파싱\n- 누적합/DP 점화 정리\n- 반복하며 최댓값 갱신`}
+              placeholder={T.decompose}
               value={decompose}
               onChange={(e) => setDecompose(e.target.value)}
             />
@@ -399,12 +558,14 @@ ${userText}`
 
         {step === 'pattern' && (
           <>
-            <h2 className="text-lg md:text-xl font-bold mb-2">3) 패턴 인식하기</h2>
-            <p className="text-sm text-slate-600 mb-3">유사 문제/자료구조/알고리즘을 연결해보세요.</p>
+            <h2 className="text-lg md:text-xl font-bold mb-1">3) 패턴 인식하기</h2>
+            <p className="text-xs text-slate-600 mb-3">
+              기준: 후보 ≥2, 시간/공간/데이터 특성 비교 → 부적합 후보는 반례로 제거, 최종 불변식 1~2줄.
+            </p>
             <textarea
               rows={10}
               className="w-full h-[220px] rounded-xl border border-slate-300 p-3 outline-none focus:ring-2 focus:ring-[#002D56]"
-              placeholder="예) Kadane 패턴: cur = max(x, cur+x); best = max(best, cur)"
+              placeholder={T.pattern}
               value={pattern}
               onChange={(e) => setPattern(e.target.value)}
             />
@@ -413,15 +574,17 @@ ${userText}`
 
         {step === 'abstract' && (
           <>
-            <h2 className="text-lg md:text-xl font-bold mb-2">4) 추상화하기</h2>
-            <p className="text-sm text-slate-600 mb-3">입력/출력/핵심 흐름을 명확히.</p>
+            <h2 className="text-lg md:text-xl font-bold mb-1">4) 추상화하기</h2>
+            <p className="text-xs text-slate-600 mb-3">
+              기준: I/O 표식 + 상태 전이(언제 값이 갱신되는가) + 경계/분기 명시.
+            </p>
             <div className="grid md:grid-cols-2 gap-3">
               <div>
                 <label className="text-xs text-slate-500">입력</label>
                 <textarea
                   rows={8}
                   className="mt-1 w-full h-[200px] rounded-xl border border-slate-300 p-3 outline-none focus:ring-2 focus:ring-[#002D56]"
-                  placeholder="예) n: 정수, nums: 길이 n의 정수 배열"
+                  placeholder={T.abstractInPh}
                   value={abstractIn}
                   onChange={(e) => setAbstractIn(e.target.value)}
                 />
@@ -431,7 +594,7 @@ ${userText}`
                 <textarea
                   rows={8}
                   className="mt-1 w-full h-[200px] rounded-xl border border-slate-300 p-3 outline-none focus:ring-2 focus:ring-[#002D56]"
-                  placeholder="예) 최대 연속 부분합 값"
+                  placeholder={T.abstractOutPh}
                   value={abstractOut}
                   onChange={(e) => setAbstractOut(e.target.value)}
                 />
@@ -442,12 +605,14 @@ ${userText}`
 
         {step === 'pseudocode' && (
           <>
-            <h2 className="text-lg md:text-xl font-bold mb-2">5) 의사코드 → 코드/실행</h2>
-            <p className="text-sm text-slate-600 mb-3">의사코드를 정리하고 아래에서 실행.</p>
+            <h2 className="text-lg md:text-xl font-bold mb-1">5) 의사코드 → 코드/실행</h2>
+            <p className="text-xs text-slate-600 mb-3">
+              기준: 10~20줄 절차 + 불변식/종료조건/복잡도 + 단위 테스트 2줄.
+            </p>
             <textarea
               rows={8}
               className="w-full h-[200px] rounded-xl border border-slate-300 p-3 outline-none focus:ring-2 focus:ring-[#002D56] mb-4"
-              placeholder={`예)\n- cur=0, best=-INF\n- 각 x에 대해 cur=max(x,cur+x); best=max(best,cur)\n- best 출력`}
+              placeholder={T.pseudocode}
               value={pseudocode}
               onChange={(e) => setPseudocode(e.target.value)}
             />
@@ -473,7 +638,7 @@ ${userText}`
             <div className="grid md:grid-cols-2 gap-3 mt-4">
               <textarea
                 className="w-full h-32 rounded-xl border border-slate-300 p-3 outline-none focus:ring-2 focus:ring-[#002D56]"
-                placeholder={`표준입력 (예: \n9\n-2 1 -3 4 -1 2 1 -5 4\n)`}
+                placeholder={`표준입력 예\n(문제 샘플이 있으면 위 "문제 설명" 참조)\n필요 시 "실행" 전에 붙여넣기`}
                 value={stdin}
                 onChange={(e) => setStdin(e.target.value)}
               />
@@ -481,11 +646,37 @@ ${userText}`
 {stdout || '실행 결과가 여기에 표시됩니다.'}
               </pre>
             </div>
+
+            {/* 실행 버튼들 (추가된 부분) */}
+            <div className="mt-3 flex flex-wrap items-center gap-2">
+              <button
+                onClick={() => run()}
+                className="px-4 py-2 rounded-xl bg-[#002D56] text-white hover:bg-[#002D56]/90 disabled:opacity-50"
+                disabled={(codeByLang[language] ?? '').trim().length === 0}
+                title="Ctrl/⌘ + Enter"
+              >
+                실행
+              </button>
+
+              {(problem.samples ?? []).map((s, i) => (
+                <button
+                  key={i}
+                  onClick={() => runSample(i)}
+                  className="px-3 py-2 rounded-xl border border-slate-300 hover:bg-gray-50"
+                >
+                  샘플 {i + 1} 실행
+                </button>
+              ))}
+
+              <span className="text-xs text-slate-500 ml-1">
+                단축키: <kbd className="px-1 py-0.5 border rounded">Ctrl/⌘</kbd> + <kbd className="px-1 py-0.5 border rounded">Enter</kbd>
+              </span>
+            </div>
           </>
         )}
       </section>
 
-      {/* AI 튜터 카드 — 아래 고정 */}
+      {/* AI 튜터 카드 */}
       <section className="mt-6 rounded-2xl border border-slate-200 bg-white/90 backdrop-blur p-5 md:p-6 ring-1 ring-black/5 shadow-sm">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <h3 className="text-base md:text-lg font-extrabold">AI 튜터 — {STEP_LABEL[step]}</h3>
@@ -528,11 +719,11 @@ ${userText}`
         <div className="border-b border-slate-200 my-3" />
 
         <div className="text-sm text-slate-600 mb-3">
-          {step === 'understand' && '핵심 요구/제약/엣지케이스를 중심으로 피드백합니다.'}
-          {step === 'decompose' && '체크리스트 단위 분해가 잘 되었는지 피드백합니다.'}
-          {step === 'pattern' && '유사 문제/알고리즘 패턴 연결을 돕습니다.'}
-          {step === 'abstract' && '입·출력/흐름 정의의 모호함을 짚어줍니다.'}
-          {step === 'pseudocode' && '의사코드를 점검하거나 간단 스니펫을 제안합니다.'}
+          {step === 'understand' && '핵심 요구/입·출력/제약/엣지·반례를 기준에 맞춰 점검합니다.'}
+          {step === 'decompose' && '단계 수(3~7), 상태·전이·예외 명시 여부를 점검합니다.'}
+          {step === 'pattern' && '후보 비교의 근거/반례/불변식 기술 여부를 점검합니다.'}
+          {step === 'abstract' && 'I/O 표식·상태 전이·경계 분기 기술 여부를 점검합니다.'}
+          {step === 'pseudocode' && '불변식·종료조건·복잡도·단위테스트 포함 여부를 점검합니다.'}
         </div>
 
         <div className="min-h-[160px] whitespace-pre-wrap leading-7 break-words">
