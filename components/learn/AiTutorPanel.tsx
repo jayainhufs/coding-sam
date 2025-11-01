@@ -23,16 +23,14 @@ export default function AiTutorPanel({
   const [loading, setLoading] = useState(false)
   const [text, setText] = useState('')
 
-  const canRunRequest = hasInputForStep(step) // 요청/코드제안 전용
-  const canRunHint = true                      // 힌트는 항상 OK
+  // 요청/코드제안: 입력이 있어야 실행
+  const canRunRequest = hasInputForStep(step)
+  // 힌트: 항상 실행 가능
+  const canRunHint = true // (미래에 UI 표시용으로 쓸 수 있어 남겨둠)
 
   async function run(nextMode: AiMode | undefined) {
-    // 입력 제한: 힌트는 제외, 나머지는 입력 필요
-    if (nextMode !== 'hint' && !canRunRequest) {
-      setMode(nextMode)
-      setText('현재 단계 입력이 비어 있어요. 간단히 메모를 적은 뒤 다시 시도해 주세요.')
-      return
-    }
+    // 힌트가 아니고 입력이 없으면 무시
+    if (nextMode !== 'hint' && !canRunRequest) return
 
     setMode(nextMode)
     setLoading(true)
@@ -40,21 +38,33 @@ export default function AiTutorPanel({
 
     try {
       const prompt = buildPrompt(step, nextMode as AiMode)
+
+      // ✅ 힌트 모드: promptOverride를 보내지 않고, userInput만 최소 토큰으로 전달
+      //    (서버가 힌트 전용 프롬프트를 강제 생성하도록)
+      const body: any = {
+        step,
+        mode: nextMode,       // 'hint' | 'code-suggest' | undefined
+        problem,              // { id, title, description }
+      }
+
+      if (nextMode === 'hint') {
+        body.userInput = '(없음)' // 서버 zod refine 통과용 최소 입력
+      } else {
+        // 요청/코드제안에서만 override 사용
+        body.promptOverride = prompt
+      }
+
       const res = await fetch('/api/ai/feedback', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          step,
-          mode: nextMode,                 // 'hint' | 'code-suggest' | undefined
-          problem,                        // { id, title, description }
-          promptOverride: prompt,         // 서버는 이 프롬프트를 그대로 사용
-        }),
+        body: JSON.stringify(body),
       })
+
       const j = await res.json()
       if (!res.ok) throw new Error(j?.error || 'AI 서버 오류')
-      setText(j.text || '(임시 응답)\n' + prompt)
+      setText(j.text || '(임시 응답)\n' + (nextMode === 'hint' ? '' : prompt))
     } catch (e: any) {
-      setText(`AI 서버 오류: ${e.message ?? e}`)
+      setText(`AI 서버 오류: ${e?.message ?? e}`)
     } finally {
       setLoading(false)
     }
@@ -69,7 +79,7 @@ export default function AiTutorPanel({
           <button
             role="tab"
             aria-selected={mode === undefined}
-            onClick={() => run(undefined)}           // 요청
+            onClick={() => run(undefined)}                 // 요청
             disabled={!canRunRequest}
             className={`px-3.5 py-1.5 text-sm whitespace-nowrap transition ${
               mode === undefined ? 'bg-[#0f2a4a] text-white' : 'bg-white hover:bg-gray-50 text-slate-700'
@@ -82,7 +92,7 @@ export default function AiTutorPanel({
           <button
             role="tab"
             aria-selected={mode === 'hint'}
-            onClick={() => run('hint')}              // 힌트 (항상 가능)
+            onClick={() => run('hint')}                    // 힌트(입력 없어도 실행)
             className={`px-3.5 py-1.5 text-sm whitespace-nowrap transition ${
               mode === 'hint' ? 'bg-[#0f2a4a] text-white' : 'bg-white hover:bg-gray-50 text-slate-700'
             }`}
@@ -94,7 +104,7 @@ export default function AiTutorPanel({
           <button
             role="tab"
             aria-selected={mode === 'code-suggest'}
-            onClick={() => run('code-suggest')}     // 코드 제안
+            onClick={() => run('code-suggest')}           // 코드 제안
             disabled={!canRunRequest}
             className={`px-3.5 py-1.5 text-sm whitespace-nowrap transition ${
               mode === 'code-suggest' ? 'bg-[#0f2a4a] text-white' : 'bg-white hover:bg-gray-50 text-slate-700'
