@@ -134,6 +134,17 @@ export default function LearnWizard({ problem }: { problem: Problem }) {
     return Math.min(100, s)
   }
 
+  // ★ 추가: 퀴즈 페이지로 이동하는 헬퍼
+  function goToQuiz(problemId: string, latestStep: StepKey, latestText: string) {
+    const qs = new URLSearchParams({
+      step: latestStep,
+      text: latestText,
+      problem: problem.description || problem.title || '',
+    }).toString()
+    // /quiz/[problemId] 페이지로 이동
+    router.push(`/quiz/${problemId}?${qs}`)
+  }
+
   // 제출
   async function handleSubmit() {
     const s: StepScores = {
@@ -150,7 +161,7 @@ export default function LearnWizard({ problem }: { problem: Problem }) {
     const attemptsPrev = prev?.attempts ?? 0
 
     try {
-      const res = await fetch('/api/ai/evaluate', {
+      const res = await fetch('/api/ai/feedback/evaluate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -174,7 +185,11 @@ export default function LearnWizard({ problem }: { problem: Problem }) {
       addXP(30 + bonus)
       setScores(s)
       setAvgScore(finalAvg)
-      router.push('/home')
+
+      // ★ 여기서 바로 퀴즈로 보낸다
+      goToQuiz(problem.id, 'pseudocode', pseudocode || '')
+      // 만약 퀴즈 없이 홈으로 바로 가고 싶으면 위 줄을 주석 처리하고 아래 줄을 쓰면 됨
+      // router.push('/home')
     } catch {
       const attempts = attemptsPrev + 1
       setProgress(problem.id, { scores: s, attempts })
@@ -183,7 +198,10 @@ export default function LearnWizard({ problem }: { problem: Problem }) {
       addXP(30 + bonus)
       setScores(s)
       setAvgScore(avg)
-      router.push('/home')
+
+      // ★ 실패 폴백일 때도 퀴즈로 보낸다 (여기 중요)
+      goToQuiz(problem.id, 'pseudocode', pseudocode || '')
+      // router.push('/home')
     }
   }
 
@@ -216,7 +234,7 @@ export default function LearnWizard({ problem }: { problem: Problem }) {
     return () => clearTimeout(timer)
   }, [step, understand, decompose, pattern, abstractIn, abstractOut, pseudocode])
 
-  // AI 프롬프트 빌더
+  // AI 프롬프트 빌더 (원본 그대로)
   const buildPrompt = useMemo(() => {
     const goal =
 `당신은 학습자를 5단계로 코칭하는 한국어 코딩 튜터입니다.
@@ -437,7 +455,6 @@ ${userText}`
           <button
             onClick={() => setStepIdx((i) => Math.min(STEP_ORDER.length - 1, i + 1))}
             className="px-5 py-2.5 rounded-xl bg-[#296B75] text-white hover:bg-[#296B75]/90 disabled:opacity-50"
-            // ▶ 변경점: 패턴 단계는 scoring 중이어도 비활성화하지 않음
             disabled={(step !== 'pattern') && (!canNext || scoring)}
             title={
               step === 'pattern'
