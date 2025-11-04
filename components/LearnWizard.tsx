@@ -122,7 +122,7 @@ export default function LearnWizard({ problem }: { problem: Problem }) {
     }
   }, [step, understand, decompose, pattern, abstractIn, abstractOut, pseudocode])
 
-  // ▶ 변경점: 패턴 단계는 항상 이동 가능, 의사코드도 이동 가능
+  // ▶ 패턴/의사코드는 항상 이동 가능
   const canNext = (step === 'pseudocode' || step === 'pattern') ? true : (aiScore >= PASS_LINE)
 
   // 제출용 임시 점수(기존 로직 유지)
@@ -134,14 +134,13 @@ export default function LearnWizard({ problem }: { problem: Problem }) {
     return Math.min(100, s)
   }
 
-  // ★ 추가: 퀴즈 페이지로 이동하는 헬퍼
+  // 퀴즈 이동
   function goToQuiz(problemId: string, latestStep: StepKey, latestText: string) {
     const qs = new URLSearchParams({
       step: latestStep,
       text: latestText,
       problem: problem.description || problem.title || '',
     }).toString()
-    // /quiz/[problemId] 페이지로 이동
     router.push(`/quiz/${problemId}?${qs}`)
   }
 
@@ -186,10 +185,7 @@ export default function LearnWizard({ problem }: { problem: Problem }) {
       setScores(s)
       setAvgScore(finalAvg)
 
-      // ★ 여기서 바로 퀴즈로 보낸다
       goToQuiz(problem.id, 'pseudocode', pseudocode || '')
-      // 만약 퀴즈 없이 홈으로 바로 가고 싶으면 위 줄을 주석 처리하고 아래 줄을 쓰면 됨
-      // router.push('/home')
     } catch {
       const attempts = attemptsPrev + 1
       setProgress(problem.id, { scores: s, attempts })
@@ -199,13 +195,11 @@ export default function LearnWizard({ problem }: { problem: Problem }) {
       setScores(s)
       setAvgScore(avg)
 
-      // ★ 실패 폴백일 때도 퀴즈로 보낸다 (여기 중요)
       goToQuiz(problem.id, 'pseudocode', pseudocode || '')
-      // router.push('/home')
     }
   }
 
-  // 현재 단계 입력 유무 체크 (힌트는 입력 없어도 OK, 요청/코드제안은 입력 필요)
+  // 현재 단계 입력 유무 체크
   const hasInputForStep = (st: StepKey) => {
     if (st === 'understand') return !!understand.trim()
     if (st === 'decompose') return !!decompose.trim()
@@ -234,7 +228,7 @@ export default function LearnWizard({ problem }: { problem: Problem }) {
     return () => clearTimeout(timer)
   }, [step, understand, decompose, pattern, abstractIn, abstractOut, pseudocode])
 
-  // AI 프롬프트 빌더 (원본 그대로)
+  // AI 프롬프트 빌더
   const buildPrompt = useMemo(() => {
     const goal =
 `당신은 학습자를 5단계로 코칭하는 한국어 코딩 튜터입니다.
@@ -304,7 +298,13 @@ ${userText}`
 
       <ProgressBar value={progress} />
 
-      <StepTabs order={STEP_ORDER} label={STEP_LABEL} current={step} onChange={setStepIdx} />
+      {/* 탭: 표시만, 클릭 비활성화 */}
+      <StepTabs
+        order={STEP_ORDER}
+        label={STEP_LABEL}
+        current={step}
+        clickable={false}
+      />
 
       {/* 게이트 표시줄 — 패턴/의사코드는 숨김 */}
       {step !== 'pseudocode' && step !== 'pattern' && (
