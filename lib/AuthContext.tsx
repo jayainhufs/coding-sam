@@ -1,9 +1,15 @@
+// lib/AuthContext.tsx
 'use client'
 
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react'
-import { useRouter } from 'next/navigation' // usePathname은 여기서 더 이상 필요 없습니다.
+import { useRouter } from 'next/navigation'
 
-const USER_KEY = 'coding-sam:user'
+export const USER_KEY = 'coding-sam:user'
+
+// ✅ 사용자명 표준화: 앞뒤 공백 제거 + 소문자 + URI 인코딩으로 숨은 문자/공백 차단
+export const normalizeUser = (u: string) => encodeURIComponent(u.trim().toLowerCase())
+
+export const PREF_KEY = (u: string) => `coding-sam:pref:${normalizeUser(u)}`
 
 interface AuthContextType {
   user: string | null
@@ -17,16 +23,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<string | null>(null)
   const router = useRouter()
 
-  // 앱 로드 시 localStorage에서 사용자 정보 읽어오기
-  // 초기 state는 null이고, effect가 실행된 후에 state가 업데이트됩니다.
-  // 이는 서버 렌더링(user=null)과 클라이언트 첫 렌더링(user=null)을 일치시켜
-  // Hydration 오류를 방지하는 올바른 방법입니다.
   useEffect(() => {
     try {
       const storedUser = localStorage.getItem(USER_KEY)
-      if (storedUser) {
-        setUser(storedUser)
-      }
+      if (storedUser) setUser(storedUser)
     } catch (e) {
       console.error('Failed to read auth from localStorage', e)
     }
@@ -34,26 +34,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const login = (username: string) => {
     const cleanUser = username.trim()
-    if (cleanUser) {
-      setUser(cleanUser)
+    if (!cleanUser) return
+    setUser(cleanUser)
+    try {
       localStorage.setItem(USER_KEY, cleanUser)
-      // 온보딩을 했다면 /home, 안했다면 /onboarding
-      const pref = localStorage.getItem('coding-sam:pref')
-      router.push(pref ? '/home' : '/onboarding')
+      // ✅ 사용자별 pref만 확인 (표준화된 키 사용)
+      const userPref = localStorage.getItem(PREF_KEY(cleanUser))
+      router.push(userPref ? '/home' : '/onboarding')
+    } catch (e) {
+      console.error('localStorage error', e)
+      router.push('/onboarding')
     }
   }
 
   const logout = () => {
     setUser(null)
     localStorage.removeItem(USER_KEY)
-    // 로그아웃 시 랜딩 페이지로 이동
     router.push('/')
   }
-  
-  // ❗️ 문제를 일으켰던 'if (loading || pathname === '/login')' 블록을
-  // ❗️ 완전히 제거했습니다.
 
-  // ✅ 항상 Provider를 반환합니다.
   return (
     <AuthContext.Provider value={{ user, login, logout }}>
       {children}
@@ -61,12 +60,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   )
 }
 
-// 3. Custom Hook 생성 (오류가 발생했던 곳)
 export function useAuth() {
-  const context = useContext(AuthContext)
-  if (context === undefined) {
-    // 이제 Provider가 항상 존재하므로 이 오류는 발생하지 않아야 합니다.
-    throw new Error('useAuth must be used within an AuthProvider')
-  }
-  return context
+  const ctx = useContext(AuthContext)
+  if (!ctx) throw new Error('useAuth must be used within an AuthProvider')
+  return ctx
 }

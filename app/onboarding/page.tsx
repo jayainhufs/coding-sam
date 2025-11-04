@@ -1,11 +1,11 @@
+// app/onboarding/page.tsx
 'use client'
 
+import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { useState } from 'react'
 import Image from 'next/image'
-import { useAuth } from '@/lib/AuthContext'
+import { useAuth, PREF_KEY, USER_KEY } from '@/lib/AuthContext'
 
-// 선택 옵션 정의
 const levels = [
   { id: 'beginner', title: '입문 (Beginner)', desc: '프로그래밍이 처음이거나, 아직 익숙하지 않아요.' },
   { id: 'intermediate', title: '중급 (Intermediate)', desc: '기본 문법은 알지만, 알고리즘 풀이가 어려워요.' },
@@ -20,22 +20,41 @@ const goals = [
 
 export default function Onboarding() {
   const r = useRouter()
-  const { user } = useAuth() // 로그인한 사용자 이름 가져오기
+  const { user } = useAuth()
   const [level, setLevel] = useState('beginner')
   const [goal, setGoal] = useState('algorithm')
 
+  // 미로그인 접근 가드(문자열 사용자 기준)
+  useEffect(() => {
+    if (!user) {
+      const stored = localStorage.getItem(USER_KEY)
+      if (!stored) r.replace('/login')
+    }
+  }, [user, r])
+
   function next() {
     const pref = { level, goal }
-    localStorage.setItem('coding-sam:pref', JSON.stringify(pref))
+    try {
+      // 타이밍 이슈 대비: user가 아직 세팅되기 전이면 USER_KEY에서 가져옴
+      const u = user ?? localStorage.getItem(USER_KEY)
+      if (u) {
+        localStorage.setItem(PREF_KEY(u), JSON.stringify(pref)) // ✅ 사용자별 키로 저장
+        // (선택) 레거시 키 정리
+        localStorage.removeItem('coding-sam:pref')
+      } else {
+        // 극히 드문 케이스의 최후방어
+        localStorage.setItem('coding-sam:pref', JSON.stringify(pref))
+      }
+    } catch (e) {
+      console.error('localStorage error', e)
+    }
     r.push('/home')
   }
 
-  // 버튼 클릭 시 활성화/비활성화 스타일을 반환하는 함수
-  const getButtonClass = (isActive: boolean) => {
-    return isActive
+  const getButtonClass = (isActive: boolean) =>
+    isActive
       ? 'pressable w-full text-left rounded-2xl border-2 border-[#002D56] bg-[#002D56]/5 p-4 ring-2 ring-[#002D56]/50 transition-all'
       : 'pressable w-full text-left rounded-2xl border border-gray-300/70 bg-white p-4 hover:bg-gray-50 transition-all'
-  }
 
   return (
     <div className="min-h-[100svh] w-full bg-gradient-to-b from-hufs-gray/30 to-white py-12 px-4">
@@ -114,4 +133,3 @@ export default function Onboarding() {
     </div>
   )
 }
-
