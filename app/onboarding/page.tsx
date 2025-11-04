@@ -4,7 +4,7 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Image from 'next/image'
-import { useAuth, PREF_KEY, USER_KEY } from '@/lib/AuthContext'
+import { useAuth, USER_KEY, PREF_KEY } from '@/lib/AuthContext'
 
 const levels = [
   { id: 'beginner', title: '입문 (Beginner)', desc: '프로그래밍이 처음이거나, 아직 익숙하지 않아요.' },
@@ -35,15 +35,10 @@ export default function Onboarding() {
   function next() {
     const pref = { level, goal }
     try {
-      // 타이밍 이슈 대비: user가 아직 세팅되기 전이면 USER_KEY에서 가져옴
-      const u = user ?? localStorage.getItem(USER_KEY)
+      const u = user ?? localStorage.getItem(USER_KEY) // 타이밍 대비
       if (u) {
-        localStorage.setItem(PREF_KEY(u), JSON.stringify(pref)) // ✅ 사용자별 키로 저장
-        // (선택) 레거시 키 정리
-        localStorage.removeItem('coding-sam:pref')
-      } else {
-        // 극히 드문 케이스의 최후방어
-        localStorage.setItem('coding-sam:pref', JSON.stringify(pref))
+        localStorage.setItem(PREF_KEY(u), JSON.stringify(pref)) // ✅ 사용자별 저장
+        localStorage.removeItem('coding-sam:pref')             // (선택) 레거시 정리
       }
     } catch (e) {
       console.error('localStorage error', e)
@@ -59,7 +54,7 @@ export default function Onboarding() {
   return (
     <div className="min-h-[100svh] w-full bg-gradient-to-b from-hufs-gray/30 to-white py-12 px-4">
       <main className="mx-auto max-w-xl">
-        {/* 헤더 및 마스코트 */}
+        {/* 헤더 */}
         <div className="flex flex-col items-center text-center mb-8">
           <span className="relative h-16 w-16 sm:h-20 sm:w-20 squircle overflow-hidden avatar-sticker avatar-bg duoish-hover mb-4">
             <Image
@@ -74,9 +69,7 @@ export default function Onboarding() {
           <h1 className="text-3xl font-extrabold tracking-tight text-[#002D56]">
             {user ? `${user}님, 환영합니다!` : '환영합니다!'}
           </h1>
-          <p className="mt-2 text-base text-gray-600">
-            딱 맞는 학습 추천을 위해 2가지만 알려주세요.
-          </p>
+          <p className="mt-2 text-base text-gray-600">딱 맞는 학습 추천을 위해 2가지만 알려주세요.</p>
         </div>
 
         {/* 설문 카드 */}
@@ -84,16 +77,10 @@ export default function Onboarding() {
           <div className="grid gap-8">
             {/* 1. 실력 수준 */}
             <fieldset className="grid gap-3">
-              <legend className="text-lg font-semibold text-gray-900 mb-2">
-                1. 현재 실력 수준이 어떠신가요?
-              </legend>
+              <legend className="text-lg font-semibold text-gray-900 mb-2">1. 현재 실력 수준이 어떠신가요?</legend>
               <div className="grid gap-3">
                 {levels.map((item) => (
-                  <button
-                    key={item.id}
-                    onClick={() => setLevel(item.id)}
-                    className={getButtonClass(level === item.id)}
-                  >
+                  <button key={item.id} onClick={() => setLevel(item.id)} className={getButtonClass(level === item.id)}>
                     <span className="font-semibold text-gray-800">{item.title}</span>
                     <p className="text-sm text-gray-600 mt-1">{item.desc}</p>
                   </button>
@@ -103,16 +90,10 @@ export default function Onboarding() {
 
             {/* 2. 학습 목표 */}
             <fieldset className="grid gap-3">
-              <legend className="text-lg font-semibold text-gray-900 mb-2">
-                2. 주된 학습 목표는 무엇인가요?
-              </legend>
+              <legend className="text-lg font-semibold text-gray-900 mb-2">2. 주된 학습 목표는 무엇인가요?</legend>
               <div className="grid gap-3">
                 {goals.map((item) => (
-                  <button
-                    key={item.id}
-                    onClick={() => setGoal(item.id)}
-                    className={getButtonClass(goal === item.id)}
-                  >
+                  <button key={item.id} onClick={() => setGoal(item.id)} className={getButtonClass(goal === item.id)}>
                     <span className="font-semibold text-gray-800">{item.title}</span>
                     <p className="text-sm text-gray-600 mt-1">{item.desc}</p>
                   </button>
