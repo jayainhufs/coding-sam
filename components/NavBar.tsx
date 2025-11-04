@@ -64,10 +64,16 @@ export default function NavBar() {
           <div className="text-sm">
             {user ? (
               <div className="flex items-center gap-3">
-                {/* ✅ 사용자 이름을 배지(pill)로 명확히 구분 */}
-                <span className="hidden sm:inline px-3 py-1 rounded-full bg-[#002D56] text-white font-semibold">
+                {/* ✅ 사용자 이름 클릭 시 /me 이동 */}
+                <Link
+                  href="/me"
+                  aria-label="내 프로필로 이동"
+                  title="내 프로필"
+                  className="hidden sm:inline px-3 py-1 rounded-full bg-[#002D56] text-white font-semibold hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-[#002D56]"
+                >
                   {user}님
-                </span>
+                </Link>
+
                 <button
                   onClick={logout}
                   className="font-semibold text-[#002D56] hover:opacity-80"

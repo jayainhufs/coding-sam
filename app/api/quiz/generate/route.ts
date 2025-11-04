@@ -2,21 +2,17 @@
 import { NextResponse } from 'next/server'
 import { z } from 'zod'
 import { openai } from '@/lib/openai'
-
-// ✅ 문제 DB에서 메타데이터 로드 (하드코딩 제거)
 import problems from '@/data/problems.json' assert { type: 'json' }
 
 const BodySchema = z.object({
   problemId: z.string(),
   step: z.enum(['understand', 'decompose', 'pattern', 'abstract', 'pseudocode']),
   userText: z.string().min(1),
-  originalProblem: z.string().min(1), // 유지(없으면 fallback용)
-  scoreResult: z
-    .object({
-      score: z.number().optional(),
-      missing: z.array(z.string()).optional(),
-    })
-    .optional(),
+  originalProblem: z.string().min(1),
+  scoreResult: z.object({
+    score: z.number().optional(),
+    missing: z.array(z.string()).optional(),
+  }).optional(),
 })
 
 type ProblemMeta = {
@@ -27,18 +23,26 @@ type ProblemMeta = {
   samples?: { input: string; output: string }[]
 }
 
-// ─────────────────────────────
-// 프롬프트(문제 일반화)
-// ─────────────────────────────
+/** 이번 퀴즈에서 사용할 3단계(2/2/2). 필요 시 여기만 수정 */
+const TARGET_STEPS = ['understand','decompose','pseudocode'] as const
+type TargetStep = typeof TARGET_STEPS[number]
+
+/** 변수명 맞히기류 금지 필터 */
+function isBannedVariableNameQuestion(q: string) {
+  const s = (q || '').toLowerCase()
+  // 한/영 모두 금지: "변수", "variable", "identifier", "...은 무엇인가요/무엇인가"
+  return /(변수|variable|identifier)/.test(s) && /(무엇|어느|이름|what|which)/.test(s)
+}
+
+/** 프롬프트 */
 function buildPrompt(input: z.infer<typeof BodySchema>, meta: ProblemMeta | null) {
   const missingPart =
     input.scoreResult?.missing && input.scoreResult.missing.length > 0
       ? `학습자가 놓친 항목:
 ${input.scoreResult.missing.map(s => `- ${s}`).join('\n')}
-이(가) 보완되도록, 현재 단계(${input.step}) 파트의 2문항 이상에 반영하라.`
-      : '학습자가 놓친 항목 정보는 없음. 각 단계 핵심을 고르게 묻는다.'
+이(가) 보완되도록, 해당 항목을 현재 단계(${input.step}) 연계 문항에 반영하라.`
+      : '학습자가 놓친 항목 정보는 없음. 핵심 개념을 고르게 묻는다.'
 
-  // 문제 메타: 하드코딩 없이 그대로 전달
   const metaBlock = meta
     ? `{
   "id": "${meta.id}",
@@ -55,7 +59,7 @@ ${input.scoreResult.missing.map(s => `- ${s}`).join('\n')}
 [문제 메타데이터(JSON)]
 ${metaBlock}
 
-[원문 문제 설명(클래스/페이지에 노출된 짧은 설명)]
+[원문 문제 설명]
 ${input.originalProblem}
 
 [학습자가 방금 작성한 단계와 답안]
@@ -64,23 +68,21 @@ ${input.originalProblem}
 """${input.userText}"""
 
 [생성 규칙]
-1) 총 10문항, 전부 객관식(MCQ).
-2) 5가지 사고 단계별로 2문항씩 배분:
+1) 총 6문항, 전부 객관식(MCQ).
+2) 단계 배분은 아래 3단계에 각 2문항씩 (순서는 임의):
    - understand(이해) 2
    - decompose(분해) 2
-   - pattern(패턴) 2
-   - abstract(추상화) 2
    - pseudocode(의사코드) 2
-3) 난이도 분포: 쉬움 4, 보통 4, 응용 2.
+3) 난이도 분포는 자유롭게 섞되, 너무 쉬움에 치우치지 말 것.
 4) 보기(options)는 4개. 정답(answer)은 반드시 options 중 하나와 **문자 그대로 완전 일치**.
 5) 한국어로 간결하게, 중복/유사 문항 금지.
-6) 단계별 가이드(문제 일반화):
+6) **금지 유형**: “어떤 변수가 ○○을 담당하나요?”, “변수 이름은 무엇인가요?” 등
+   변수명/식별자 이름을 맞히게 하는 문제는 **절대 만들지 말 것**.
+7) 단계별 가이드(일반화):
    - understand: 입력/출력 정의, 제약(범위·복잡도 목표), 대표 엣지케이스
    - decompose: "입력 파싱 → 핵심 로직 → 출력" 파이프라인, 각 단계의 상태/전이/예외
-   - pattern: 풀이 전략 후보 비교(예: 브루트포스 vs 자료구조/알고리즘), 시간·공간 복잡도, 불변식 또는 핵심 아이디어
-   - abstract: I/O 표 개념(이름/타입/범위/예시), 상태 전이, 경계 분기
-   - pseudocode: 핵심 변수와 제어구조 기반의 절차, 종료조건/테스트
-7) ${missingPart}
+   - pseudocode: 핵심 변수의 역할 설명이 아니라, 절차·제어구조·종료조건·테스트 같은 행위/흐름을 묻는다.
+8) ${missingPart}
 
 [출력 스키마(JSON 배열)]
 [
@@ -88,7 +90,7 @@ ${input.originalProblem}
     "id": "q1",
     "problemId": "${input.problemId}",
     "originalProblem": ${JSON.stringify(input.originalProblem)},
-    "step": "understand" | "decompose" | "pattern" | "abstract" | "pseudocode",
+    "step": "understand" | "decompose" | "pseudocode",
     "type": "mcq",
     "difficulty": "easy" | "medium" | "applied",
     "question": "질문 내용",
@@ -103,7 +105,7 @@ ${input.originalProblem}
 `.trim()
 }
 
-// JSON 배열 파서(느슨)
+/** JSON 배열 파서(느슨) */
 function looseParseArray(raw: string): any[] {
   try {
     const m = raw.match(/\[[\s\S]*\]/)
@@ -117,7 +119,6 @@ export async function POST(req: Request) {
   try {
     const body = BodySchema.parse(await req.json())
 
-    // 문제 메타 가져오기 (하드코딩 X)
     const meta: ProblemMeta | null =
       Array.isArray(problems)
         ? (problems as ProblemMeta[]).find(p => (p.id ?? '').toLowerCase() === body.problemId.toLowerCase()) ?? null
@@ -137,17 +138,23 @@ export async function POST(req: Request) {
     const raw = completion.choices[0]?.message?.content ?? '[]'
     let quizzes = looseParseArray(raw)
 
-    // 스키마 보정 + 10문항 강제 + 단계 균등(2문항씩)
-    const steps = ['understand','decompose','pattern','abstract','pseudocode'] as const
-    const byStepCount: Record<string, number> = { understand:0, decompose:0, pattern:0, abstract:0, pseudocode:0 }
+    // 스키마 보정 + 6문항 강제 + 단계 균등(2/2/2) + 금지문항 필터
+    const steps = TARGET_STEPS
+    const byStepCount: Record<TargetStep, number> = {
+      understand: 0, decompose: 0, pseudocode: 0,
+    }
 
     const normalized: any[] = []
     for (const q of Array.isArray(quizzes) ? quizzes : []) {
-      if (normalized.length >= 10) break
-      const step = steps.includes(q?.step) ? q.step : steps[Math.floor(normalized.length/2)]
-      if (byStepCount[step] >= 2) continue // 단계별 2문항 제한
+      if (normalized.length >= 6) break
+      const step: TargetStep = steps.includes(q?.step) ? q.step : steps[Math.floor(normalized.length/2)] as TargetStep
+      if (byStepCount[step] >= 2) continue
       const optsOK = Array.isArray(q?.options) && q.options.length === 4
       const ansOK = optsOK && q.options.includes(q?.answer)
+      const questionText = q?.question ?? ''
+
+      // 변수명 맞히기류 금지
+      if (isBannedVariableNameQuestion(questionText)) continue
 
       normalized.push({
         id: q?.id ?? `q${normalized.length + 1}`,
@@ -155,103 +162,117 @@ export async function POST(req: Request) {
         originalProblem: body.originalProblem,
         step,
         type: 'mcq',
-        difficulty: ['easy','medium','applied'].includes(q?.difficulty) ? q.difficulty
-                    : (normalized.length < 4 ? 'easy' : normalized.length < 8 ? 'medium' : 'applied'),
-        question: q?.question ?? '다음 중 설명에 가장 알맞은 것을 고르세요.',
+        difficulty: ['easy','medium','applied'].includes(q?.difficulty) ? q.difficulty : 'medium',
+        question: questionText || '설명에 가장 알맞은 것을 고르세요.',
         options: optsOK ? q.options : ['A','B','C','D'],
         answer: ansOK ? q.answer : (optsOK ? q.options[0] : 'A'),
-        explanation: q?.explanation ?? '핵심 개념/흐름/복잡도 근거에 따른 정답입니다.',
+        explanation: q?.explanation ?? '핵심 개념/흐름 근거에 따른 정답입니다.',
       })
       byStepCount[step]++
     }
 
-    // 부족하면 중립 더미로 채우기(문제 제목/설명 사용, 주제 불문)
-    for (let i = normalized.length; i < 10; i++) {
-      const step = steps[Math.floor(i/2)]
-      const diff = i < 4 ? 'easy' : i < 8 ? 'medium' : 'applied'
-      const title = meta?.title ?? '주어진 문제'
-      const generic = (() => {
-        switch (step) {
-          case 'understand':
-            return {
-              q: `${title}의 '출력'을 가장 정확히 서술한 것은?`,
-              opts: ['문제가 요구한 결과값', '입력의 길이', '중간 계산값', '정렬된 배열'],
-              ans: '문제가 요구한 결과값',
-              exp: '출력은 요구 조건을 만족하는 최종 결과.'
-            }
-          case 'decompose':
-            return {
-              q: `${title}의 일반적인 처리 흐름으로 가장 타당한 것은?`,
-              opts: ['입력파싱→핵심로직→출력', '핵심로직→출력→입력파싱', '출력→입력파싱→핵심로직', '입력파싱→출력→핵심로직'],
-              ans: '입력파싱→핵심로직→출력',
-              exp: '전형적 파이프라인.'
-            }
-          case 'pattern':
-            return {
-              q: `다음 중 ${title}를 푸는 전략 비교로 가장 타당한 설명은?`,
-              opts: ['브루트포스는 느리고 최적 기법은 입력 구조를 활용한다', '모든 전략은 동일한 복잡도', '공간만 늘리면 항상 O(1)', '정렬만 하면 항상 해결'],
-              ans: '브루트포스는 느리고 최적 기법은 입력 구조를 활용한다',
-              exp: '전략 비교의 핵심은 복잡도/구조 활용.'
-            }
-          case 'abstract':
-            return {
-              q: `${title}에서 적절한 I/O 매핑 설명은?`,
-              opts: ['입력: 문제에서 지정한 자료형들 / 출력: 요구 결과', '입력: 임의 문자열 / 출력: 임의 정수', '입력: 없음 / 출력: 디버그 로그', '입력: 결과 / 출력: 입력'],
-              ans: '입력: 문제에서 지정한 자료형들 / 출력: 요구 결과',
-              exp: 'I/O는 문제 정의와 일치해야 함.'
-            }
-          default: // pseudocode
-            return {
-              q: `${title} 의사코드 작성 시 우선 고려할 요소는?`,
-              opts: ['핵심 변수와 제어구조를 명확히 적는다', '주석 없이 한 줄로 쓴다', '난수 생성만 추가한다', '입력을 무시한다'],
-              ans: '핵심 변수와 제어구조를 명확히 적는다',
-              exp: '의사코드는 흐름과 구조가 핵심.'
-            }
+    // 부족 시 더미 생성(금지 유형 없이)
+    const title = meta?.title ?? '주어진 문제'
+    const fallbackFor = (step: TargetStep) => {
+      if (step === 'understand') {
+        return {
+          q: `${title}의 '출력'을 가장 정확히 서술한 것은?`,
+          opts: ['요구 조건을 만족하는 최종 결과', '입력 길이', '중간 계산값', '임의 디버그 문자열'],
+          ans: '요구 조건을 만족하는 최종 결과',
+          exp: '출력은 요구 조건을 만족하는 최종 결과다.',
         }
-      })()
-
-      normalized.push({
-        id: `fallback-${i+1}`,
-        problemId: body.problemId,
-        originalProblem: body.originalProblem,
-        step,
-        type: 'mcq',
-        difficulty: diff,
-        question: generic.q,
-        options: generic.opts,
-        answer: generic.ans,
-        explanation: generic.exp,
-      })
+      }
+      if (step === 'decompose') {
+        return {
+          q: `${title} 처리 흐름으로 가장 타당한 것은?`,
+          opts: ['입력파싱→핵심로직→출력', '핵심로직→출력→입력파싱', '출력→입력파싱→핵심로직', '입력파싱→출력→핵심로직'],
+          ans: '입력파싱→핵심로직→출력',
+          exp: '전형적 파이프라인.',
+        }
+      }
+      // pseudocode
+      return {
+        q: `${title} 의사코드 작성에서 먼저 고려할 항목은?`,
+        opts: ['절차/제어구조와 종료조건을 명확히 한다', '변수 이름을 미리 정한다', '난수를 추가한다', '입력을 무시한다'],
+        ans: '절차/제어구조와 종료조건을 명확히 한다',
+        exp: '의사코드는 흐름·제어·종료 조건이 핵심이다.',
+      }
     }
 
-    return NextResponse.json({ ok: true, items: normalized })
+    // 단계별 2문항 충족되도록 채우기
+    for (const st of steps) {
+      while (byStepCount[st] < 2) {
+        const g = fallbackFor(st)
+        normalized.push({
+          id: `fallback-${st}-${byStepCount[st]+1}`,
+          problemId: body.problemId,
+          originalProblem: body.originalProblem,
+          step: st,
+          type: 'mcq',
+          difficulty: 'medium',
+          question: g.q,
+          options: g.opts,
+          answer: g.ans,
+          explanation: g.exp,
+        })
+        byStepCount[st]++
+      }
+    }
+
+    // 최종 6개만 보장
+    return NextResponse.json({ ok: true, items: normalized.slice(0, 6) })
   } catch (err) {
     console.error('[quiz/generate error]', err)
-    // 실패 시에도 10문항 보장(완전 중립 더미)
-    const steps = ['understand','decompose','pattern','abstract','pseudocode'] as const
+    // 실패 시에도 6문항 보장
+    const steps = TARGET_STEPS
     const fallback: any[] = []
-    for (let i = 0; i < 10; i++) {
-      const step = steps[Math.floor(i/2)]
-      fallback.push({
-        id: `fallback-${i+1}`,
-        problemId: 'unknown',
-        originalProblem: '알고리즘 문제',
-        step,
-        type: 'mcq',
-        difficulty: i < 4 ? 'easy' : i < 8 ? 'medium' : 'applied',
-        question:
-          step === 'understand' ? '문제의 출력 정의로 가장 적절한 것은?'
-          : step === 'decompose' ? '일반적인 처리 흐름으로 맞는 것은?'
-          : step === 'pattern' ? '전략 비교 설명으로 타당한 것은?'
-          : step === 'abstract' ? 'I/O 매핑 설명으로 맞는 것은?'
-          : '의사코드 작성 시 우선 고려할 요소는?',
-        options:
-          step === 'decompose'
-            ? ['입력파싱→핵심로직→출력', '핵심로직→출력→입력파싱', '출력→입력파싱→핵심로직', '입력파싱→출력→핵심로직']
-            : ['정답 후보1','정답 후보2','정답 후보3','정답 후보4'],
-        answer: step === 'decompose' ? '입력파싱→핵심로직→출력' : '정답 후보1',
-        explanation: '일반적 원칙에 기반한 정답입니다.',
-      })
+    const title = '알고리즘 문제'
+    const mk = (st: TargetStep, i: number) => {
+      if (st === 'understand') {
+        return {
+          id: `fallback-${st}-${i}`,
+          step: st,
+          question: `${title}의 출력 정의로 가장 적절한 것은?`,
+          options: ['요구 조건을 만족하는 최종 결과', '입력 길이', '중간 계산값', '임의 디버그 문자열'],
+          answer: '요구 조건을 만족하는 최종 결과',
+          explanation: '출력은 요구 조건을 만족하는 최종 결과.',
+        }
+      }
+      if (st === 'decompose') {
+        return {
+          id: `fallback-${st}-${i}`,
+          step: st,
+          question: `${title} 처리 흐름으로 올바른 것은?`,
+          options: ['입력파싱→핵심로직→출력', '핵심로직→출력→입력파싱', '출력→입력파싱→핵심로직', '입력파싱→출력→핵심로직'],
+          answer: '입력파싱→핵심로직→출력',
+          explanation: '전형적 파이프라인.',
+        }
+      }
+      return {
+        id: `fallback-${st}-${i}`,
+        step: st,
+        question: `${title} 의사코드에서 우선 고려할 요소는?`,
+        options: ['절차/제어구조와 종료조건', '변수 이름', '난수 추가', '입력 무시'],
+        answer: '절차/제어구조와 종료조건',
+        explanation: '의사코드는 흐름·제어·종료 조건이 핵심.',
+      }
+    }
+    for (const st of steps) {
+      for (let i = 1; i <= 2; i++) {
+        const g = mk(st, i)
+        fallback.push({
+          id: g.id,
+          problemId: 'unknown',
+          originalProblem: title,
+          step: st,
+          type: 'mcq',
+          difficulty: 'medium',
+          question: g.question,
+          options: g.options,
+          answer: g.answer,
+          explanation: g.explanation,
+        })
+      }
     }
     return NextResponse.json({ ok: true, items: fallback })
   }
