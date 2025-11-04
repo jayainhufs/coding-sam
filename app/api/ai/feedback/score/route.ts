@@ -9,16 +9,17 @@ const BodySchema = z.object({
   text: z.string().min(1, 'text is required'),
 })
 
-const PASS_LINE = Number(process.env.AI_PASS_LINE ?? '50')
+// ✅ 기본 통과선 완화 (환경변수 없으면 40)
+const PASS_LINE = Number(process.env.AI_PASS_LINE ?? '40')
 
-// ───────────── Quick-Fail Guard ─────────────
+// ───────────── Quick-Fail Guard (완화판) ─────────────
 function quickFail(step: z.infer<typeof StepEnum>, raw: string) {
   const text = (raw || '').trim()
   const lc = text.toLowerCase()
   const len = text.length
   const lines = text.split('\n').map(s => s.trim()).filter(Boolean).length
 
-  // 공통: 이 정도면 그냥 빈 값이니까 바로 컷
+  // 공통: 사실상 빈 값
   if (len < 8 || lines < 1) {
     return {
       fail: true,
@@ -28,7 +29,7 @@ function quickFail(step: z.infer<typeof StepEnum>, raw: string) {
     }
   }
 
-  // ───── understand 하드 체크 ─────
+  // ───── understand: 기존 기준 유지 ─────
   if (step === 'understand') {
     const hasIn  = /(입력|input)/.test(lc)
     const hasOut = /(출력|output)/.test(lc)
@@ -45,49 +46,50 @@ function quickFail(step: z.infer<typeof StepEnum>, raw: string) {
     }
   }
 
-  // ───── decompose 하드 체크 ─────
+  // ───── decompose: 완화 ─────
   if (step === 'decompose') {
+    const keyCount = ['입력', '핵심', '로직', '출력', '상태', '전이']
+      .reduce((c, k) => c + (lc.includes(k) ? 1 : 0), 0)
     const hasBlocks = /(→|->|①|②|③|단계|step)/i.test(lc)
-    if (!hasBlocks) {
+    const minimalStructure = keyCount >= 2 || hasBlocks || lines >= 3
+    if (!minimalStructure) {
       return {
         fail: true,
         score: 30,
-        tips: ['입력 → 로직 → 출력 이렇게 한 줄로만이라도 쓰세요.'],
-        missing: ['3블록 분해 부재'],
+        tips: ['입력→핵심→출력 3블록으로만이라도 적기', '상태/전이 한 줄씩 추가'],
+        missing: ['3블록 분해 또는 상태/전이 힌트 부재'],
       }
     }
   }
 
-  // ───── pattern 하드 체크 ─────
+  // ───── pattern: 완화 ─────
   if (step === 'pattern') {
-    const candCnt = (lc.match(/dp|greedy|heap|two[-\s]?pointer|hash|정렬|분할정복|후보|candidate/g) || []).length
+    const candCnt = (lc.match(/kadane|dp|dynamic|greedy|heap|two[-\s]?pointer|hash|정렬|분할정복|후보|candidate/g) || []).length
     const hasCx = /(o\([^)]+\)|시간|공간|complexity)/.test(lc)
-    if (candCnt < 1 || !hasCx) {
+    // 패턴명 ≥1 또는 복잡도 언급이 하나라도 있으면 통과
+    if (candCnt < 1 && !hasCx) {
       return {
         fail: true,
         score: 30,
-        tips: ['패턴 이름 1개만 써도 됨 (예: Kadane, DP, 그리디)', 'O(n) 같은 복잡도 1번만 쓰기'],
-        missing: ['패턴 이름 또는 복잡도 없음'],
+        tips: ['패턴명 1개(Kadane/DP/그리디 등) 또는 O(n) 같은 복잡도 1회 언급'],
+        missing: ['패턴명/복잡도 모두 없음'],
       }
     }
   }
 
-  // ───── abstract 는 여기서 프리패스 ─────
-  // 네가 말한 대로, I/O 표식이 없거나 상태 전이가 없어도
-  // "일단" GPT한테 보내서 거기서 기준 맞는지 보게 함.
-  // 즉 여기서는 아무 것도 안 하고 그냥 통과시킴.
+  // ───── abstract: 프리패스 (여기서는 컷 안 함) ─────
   if (step === 'abstract') {
     return { fail: false }
   }
 
-  // ───── pseudocode 하드 체크 ─────
+  // ───── pseudocode: 완화(3줄 + 제어구조) ─────
   if (step === 'pseudocode') {
     const hasCtrl = /\b(for|while|if|else|switch)\b/.test(lc)
-    if (lines < 4 || !hasCtrl) {
+    if (lines < 3 || !hasCtrl) {
       return {
         fail: true,
         score: 35,
-        tips: ['for/if 하나만이라도 넣어서 4줄 이상 작성', '입력 → 루프 → 리턴 구조만 적기'],
+        tips: ['for/if 하나만이라도 넣어서 3줄 이상 작성', '입력→루프→리턴 구조만 적기'],
         missing: ['분량 부족 또는 제어구조 부재'],
       }
     }
@@ -216,7 +218,7 @@ export async function POST(req: Request) {
   try {
     const { step, text } = BodySchema.parse(await req.json())
 
-    // 1) 하드 가드
+    // 1) 하드 가드(완화판)
     const q = quickFail(step, text)
     if (q.fail) {
       return NextResponse.json({
@@ -246,7 +248,7 @@ export async function POST(req: Request) {
       return NextResponse.json({
         ok: true,
         score: 45,
-        pass: false,
+        pass: 45 >= PASS_LINE,
         band: '40-59',
         missing: ['형식 오류'],
         tips: ['BASELINE 항목을 충족하도록 보완'],
