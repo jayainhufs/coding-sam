@@ -2,6 +2,7 @@
 
 import Link from 'next/link'
 import { useEffect, useMemo, useState } from 'react'
+import { getAllProgress, getSolvedList, computeLearningRate } from '@/utils/progress'
 
 type Problem = {
   id: string
@@ -18,6 +19,10 @@ export default function ProblemsPage() {
   const [problems, setProblems] = useState<Problem[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+
+  // 진행도/푼 문제 배지 상태
+  const [progressMap, setProgressMap] = useState<Record<string, number>>({})
+  const [solvedSet, setSolvedSet] = useState<Set<string>>(new Set())
 
   // UI 상태
   const [query, setQuery] = useState('')
@@ -38,6 +43,18 @@ export default function ProblemsPage() {
         setError('문제 목록을 불러오지 못했어요.')
         setLoading(false)
       })
+  }, [])
+
+  // 진행도/푼 문제 계산 (로컬 저장소 기반)
+  useEffect(() => {
+    const all = getAllProgress()
+    const solved = new Set(getSolvedList())
+    const map: Record<string, number> = {}
+    Object.entries(all).forEach(([pid, rec]) => {
+      map[pid] = computeLearningRate(rec.scores)
+    })
+    setSolvedSet(solved)
+    setProgressMap(map)
   }, [])
 
   // 태그 목록(빈도순)
@@ -74,10 +91,9 @@ export default function ProblemsPage() {
     } else if (sort === 'difficulty') {
       arr.sort((a, b) => (DIFFICULTY_ORDER[a.difficulty] ?? 99) - (DIFFICULTY_ORDER[b.difficulty] ?? 99))
     } else {
-      // recommended: Medium을 위로, 그다음 Easy/Hard, 그리고 제목순
+      // recommended: Medium 우선, 그다음 Easy/Hard, 제목순
       arr.sort((a, b) => {
-        const score = (x: Problem) =>
-          (x.difficulty === 'Medium' ? 0 : x.difficulty === 'Easy' ? 1 : 2)
+        const score = (x: Problem) => (x.difficulty === 'Medium' ? 0 : x.difficulty === 'Easy' ? 1 : 2)
         const s = score(a) - score(b)
         return s !== 0 ? s : a.title.localeCompare(b.title)
       })
@@ -195,9 +211,7 @@ export default function ProblemsPage() {
                   <button
                     key={t}
                     onClick={() => {
-                      setActiveTags((prev) =>
-                        on ? prev.filter((x) => x !== t) : [...prev, t]
-                      )
+                      setActiveTags((prev) => (on ? prev.filter((x) => x !== t) : [...prev, t]))
                       setVisible(PAGE_SIZE)
                     }}
                     className={
@@ -225,7 +239,12 @@ export default function ProblemsPage() {
           <>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
               {visibleItems.map((p) => (
-                <ProblemCard key={p.id} p={p} />
+                <ProblemCard
+                  key={p.id}
+                  p={p}
+                  progress={progressMap[p.id]}
+                  solved={solvedSet.has(p.id)}
+                />
               ))}
             </div>
 
@@ -249,7 +268,15 @@ export default function ProblemsPage() {
 
 /* ————— 내부 컴포넌트 ————— */
 
-function ProblemCard({ p }: { p: Problem }) {
+function ProblemCard({
+  p,
+  progress,
+  solved,
+}: {
+  p: Problem
+  progress?: number
+  solved?: boolean
+}) {
   const pill =
     p.difficulty === 'Easy'
       ? 'bg-green-100 text-green-700'
@@ -270,6 +297,19 @@ function ProblemCard({ p }: { p: Problem }) {
 
       <p className="text-sm text-gray-600 mt-1 line-clamp-3">{p.description}</p>
 
+      {/* 학습률/풀었음 배지 */}
+      <div className="mt-2 flex flex-wrap gap-2">
+        {typeof progress === 'number' && (
+          <span className="text-xs px-2 py-0.5 rounded-full bg-[#146E7A] text-white">
+            학습률 {progress}%
+          </span>
+        )}
+        {solved && (
+          <span className="text-xs px-2 py-0.5 rounded-full bg-[#002D56] text-white">풀었음</span>
+        )}
+      </div>
+
+      {/* 태그 */}
       <div className="mt-3 flex flex-wrap gap-2">
         {p.tags?.slice(0, 4).map((t) => (
           <span key={t} className="text-xs px-2 py-0.5 rounded-full bg-gray-100 text-gray-700">
@@ -283,14 +323,8 @@ function ProblemCard({ p }: { p: Problem }) {
           href={`/learn/${p.id}`}
           className="inline-flex items-center justify-center rounded-xl bg-[#002D56] text-white px-3 py-2 text-sm font-semibold hover:bg-[#002D56]/90"
         >
-          풀기
+          {solved ? '다시 풀기' : '풀기'}
         </Link>
-        <a
-          href={`#${p.id}`}
-          className="inline-flex items-center justify-center rounded-xl ring-1 ring-[#002D56] text-[#002D56] px-3 py-2 text-sm font-semibold hover:bg-[#002D56]/5"
-        >
-          자세히
-        </a>
       </div>
     </div>
   )

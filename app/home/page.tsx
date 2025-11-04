@@ -26,17 +26,16 @@ const ymdLocal = (d = new Date()) => {
 
 export default function HomeDashboard() {
   const [problems, setProblems] = useState<Problem[]>([])
-  const [xp, setXp] = useState<number>(0)         // XP: 단일 소스 구독
-  const [streak, setStreak] = useState<number>(0) // 연속 학습일
+  const [xp, setXp] = useState<number>(0)
+  const [streak, setStreak] = useState<number>(0)
 
   const [progressMap, setProgressMap] = useState<Record<string, number>>({})
   const [solvedSet, setSolvedSet] = useState<Set<string>>(new Set())
 
-  /* XP 최초 로드 + 이벤트 구독 */
+  /* XP 구독 */
   useEffect(() => {
     const read = () => setXp(getXP())
     const onStorage = (e: StorageEvent) => { if (e.key === 'coding-sam:xp') read() }
-
     read()
     window.addEventListener('xp-updated', read as EventListener)
     window.addEventListener('storage', onStorage)
@@ -46,17 +45,15 @@ export default function HomeDashboard() {
     }
   }, [])
 
-  /* 스트릭(포커스/가시성 변화에도 갱신) */
+  /* 스트릭 */
   useEffect(() => {
     const KEY_STREAK = 'coding-sam:streak'
     const KEY_LAST   = 'coding-sam:lastActiveLocal'
-
     const update = () => {
       const today = ymdLocal()
-      const legacy = localStorage.getItem('coding-sam:lastActive') // 호환
+      const legacy = localStorage.getItem('coding-sam:lastActive')
       const last = localStorage.getItem(KEY_LAST) || legacy || ''
       let cur = parseInt(localStorage.getItem(KEY_STREAK) || '0', 10) || 0
-
       if (!last) {
         localStorage.setItem(KEY_LAST, today)
         cur = Math.max(1, cur || 1)
@@ -65,7 +62,6 @@ export default function HomeDashboard() {
         return
       }
       if (last === today) { setStreak(cur || 1); return }
-
       const diffDays = Math.round(
         (+new Date(`${today}T00:00:00`) - +new Date(`${last}T00:00:00`)) / 86400000
       )
@@ -74,7 +70,6 @@ export default function HomeDashboard() {
       localStorage.setItem(KEY_STREAK, String(next))
       setStreak(next)
     }
-
     update()
     const onFocus = () => update()
     const onVis = () => { if (document.visibilityState === 'visible') update() }
@@ -94,7 +89,7 @@ export default function HomeDashboard() {
       .catch(() => {})
   }, [])
 
-  /* 진행도/푼 문제 배지 */
+  /* 진행도/푼 문제 */
   useEffect(() => {
     const all = getAllProgress()
     const solved = new Set(getSolvedList())
@@ -103,6 +98,10 @@ export default function HomeDashboard() {
     setSolvedSet(solved)
     setProgressMap(map)
   }, [])
+
+  const top = problems[0]
+  const topProgress = top ? progressMap[top.id] : undefined
+  const topSolved = top ? solvedSet.has(top.id) : false
 
   return (
     <div className="min-h-[100svh] w-full bg-gradient-to-b from-hufs-gray/30 to-white">
@@ -118,10 +117,15 @@ export default function HomeDashboard() {
         {/* 좌: 추천 / 우: 레벨+스트릭+풀이 */}
         <section className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6 mb-8">
           <div className="md:col-span-2">
-            <RecommendedToday problem={problems[0]} xp={xp} streak={streak} />
+            <RecommendedToday
+              problem={top}
+              xp={xp}
+              streak={streak}
+              progress={topProgress}   // ⬅ 전달
+              solved={topSolved}       // ⬅ 전달
+            />
           </div>
 
-          {/* 오른쪽 칼럼 고정 */}
           <div className="grid grid-cols-1 gap-4 md:sticky md:top-20 self-start h-fit">
             <LevelCardClassic />
             <StreakCardClassic streakDays={streak} />
@@ -146,7 +150,7 @@ export default function HomeDashboard() {
   )
 }
 
-/* —— 보조 카드 —— */
+/* — 보조 카드 — */
 function ProblemCard({ p, progress, solved }: { p: Problem; progress?: number; solved?: boolean }) {
   const pill =
     p.difficulty === 'Easy'   ? 'bg-green-100 text-green-700'
@@ -173,11 +177,11 @@ function ProblemCard({ p, progress, solved }: { p: Problem; progress?: number; s
       </div>
 
       <div className="mt-4 flex gap-2">
-        <Link href={`/learn/${p.id}`} className="inline-flex items-center justify-center rounded-xl bg-[#002D56] text-white px-3 py-2 text-sm font-semibold hover:bg-[#002D56]/90">
+        <Link
+          href={`/learn/${p.id}`}
+          className="inline-flex items-center justify-center rounded-xl bg-[#002D56] text-white px-3 py-2 text-sm font-semibold hover:bg-[#002D56]/90"
+        >
           {solved ? '다시 풀기' : '풀기'}
-        </Link>
-        <Link href={`/problems#${p.id}`} className="inline-flex items-center justify-center rounded-xl ring-1 ring-[#002D56] text-[#002D56] px-3 py-2 text-sm font-semibold hover:bg-[#002D56]/5">
-          자세히
         </Link>
       </div>
     </div>
