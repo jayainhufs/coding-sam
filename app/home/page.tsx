@@ -1,6 +1,5 @@
 'use client'
 
-import Link from 'next/link'
 import { useEffect, useState } from 'react'
 import LevelCardClassic from '@/components/LevelCardClassic'
 import StreakCardClassic from '@/components/StreakCardClassic'
@@ -26,6 +25,10 @@ const ymdLocal = (d = new Date()) => {
 
 export default function HomeDashboard() {
   const [problems, setProblems] = useState<Problem[]>([])
+  // ✅ 3. (추가) "오늘의 추천 문제"를 위한 별도 state
+  const [recommendedProblem, setRecommendedProblem] = useState<
+    Problem | undefined
+  >(undefined)
   const [xp, setXp] = useState<number>(0)
   const [streak, setStreak] = useState<number>(0)
 
@@ -36,7 +39,6 @@ export default function HomeDashboard() {
   useEffect(() => {
     const read = () => setXp(getXP())
     const onStorage = (e: StorageEvent) => {
-      // ✅ K.XP() 키가 변경될 때만 반응하도록 수정
       if (e.key?.includes(':xp:')) read()
     }
     read()
@@ -90,16 +92,24 @@ export default function HomeDashboard() {
     }
   }, [])
 
-  /* 문제 로드 */
+  /* ✅ 4. (수정) 문제 로드 및 "랜덤 추천" 선택 */
   useEffect(() => {
     fetch('/api/problems')
       .then((r) => r.json())
-      .then((arr: Problem[]) => setProblems(arr))
+      .then((arr: Problem[]) => {
+        setProblems(arr) // 1. 전체 문제 목록 저장 (기존 로직)
+
+        // 2. (추가) 랜덤 추천 문제 선택
+        if (arr.length > 0) {
+          const randomIndex = Math.floor(Math.random() * arr.length)
+          setRecommendedProblem(arr[randomIndex])
+        }
+      })
       .catch(() => {})
   }, [])
 
+  /* (수정) 진행도/푼 문제 (실시간 갱신) */
   useEffect(() => {
-    // 1. localStorage에서 데이터를 읽어 state를 업데이트하는 함수
     const updateProgress = () => {
       const all = getAllProgress()
       const solved = new Set(getSolvedList())
@@ -110,24 +120,18 @@ export default function HomeDashboard() {
       setSolvedSet(solved)
       setProgressMap(map)
     }
-
-    // 2. 페이지 로드 시 즉시 실행
     updateProgress()
-
-    // 3. localStorage가 변경될 때마다(예: LearnWizard에서 푼 직후)
-    //    `storage` 이벤트를 수신하여 state를 다시 업데이트
     const handleStorageChange = (e: StorageEvent) => {
       if (e.key?.startsWith('coding-sam:progress')) {
         updateProgress()
       }
     }
     window.addEventListener('storage', handleStorageChange)
-
-    // 4. 클린업
     return () => window.removeEventListener('storage', handleStorageChange)
-  }, []) // 이 useEffect는 마운트 시 한 번만 실행되어 리스너를 등록
+  }, [])
 
-  const top = problems[0]
+  // ✅ 5. (수정) 'top' 변수가 'recommendedProblem' state를 사용하도록 변경
+  const top = recommendedProblem
   const topProgress = top ? progressMap[top.id] : undefined
   const topSolved = top ? solvedSet.has(top.id) : false
 
@@ -149,11 +153,11 @@ export default function HomeDashboard() {
         <section className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6 mb-8">
           <div className="md:col-span-2">
             <RecommendedToday
-              problem={top}
+              problem={top} // ✅ 5. 'top' (랜덤 문제)이 전달됨
               xp={xp}
               streak={streak}
-              progress={topProgress} // ⬅ 전달
-              solved={topSolved} // ⬅ 전달
+              progress={topProgress}
+              solved={topSolved}
             />
           </div>
 
@@ -168,7 +172,7 @@ export default function HomeDashboard() {
         <section className="mb-16">
           <div className="flex items-center justify-between mb-3">
             <h2 className="text-xl font-bold">추천 문제 모음</h2>
-            {/* 3. <Link> -> <a> 태그로 변경 */}
+            {/* 6. <Link> -> <a> 태그로 변경 */}
             <a
               href="/problems"
               className="text-sm text-[#002D56] hover:underline"
@@ -211,7 +215,6 @@ function ProblemCard({
       ? 'bg-red-100 text-red-700'
       : 'bg-gray-100 text-gray-600'
 
-  // 4. (핵심 수정) 태그를 표시할지 여부 결정
   const hasStatus = solved || typeof progress === 'number'
 
   return (
@@ -227,7 +230,6 @@ function ProblemCard({
 
       <p className="text-sm text-gray-600 mt-1 line-clamp-3">{p.description}</p>
 
-      {/* 5. (수정) 진행도/풀이/태그를 표시하는 div */}
       <div className="mt-2 flex flex-wrap gap-2">
         {typeof progress === 'number' && (
           <span className="text-xs px-2 py-0.5 rounded-full bg-[#146E7A] text-white">
@@ -239,7 +241,6 @@ function ProblemCard({
             풀었음
           </span>
         )}
-        {/* 6. (추가) 상태가 없을 때만 태그 표시 */}
         {!hasStatus &&
           p.tags?.slice(0, 3).map((t) => (
             <span
