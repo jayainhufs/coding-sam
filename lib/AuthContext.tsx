@@ -42,17 +42,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       localStorage.setItem(USER_KEY, cleanUser)
       // 사용자별 온보딩 여부 확인
       const userPref = localStorage.getItem(PREF_KEY(cleanUser))
-      router.push(userPref ? '/home' : '/onboarding')
+      window.location.href = (userPref ? '/home' : '/onboarding')
     } catch (e) {
       console.error('localStorage error', e)
-      router.push('/onboarding')
+      window.location.href = ('/onboarding')
     }
   }
 
   const logout = () => {
     setUser(null)
     localStorage.removeItem(USER_KEY)
-    router.push('/')
+    window.location.href =('/')
   }
 
   return (

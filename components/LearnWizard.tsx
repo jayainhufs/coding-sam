@@ -167,7 +167,7 @@ export default function LearnWizard({ problem }: { problem: Problem }) {
           summary: { avg: s, attempts: attemptsPrev, solvedCount: 0, weakest: [], strength: [] },
           aiRequestCount: 0,
           hintCount: 0,
-          solvedThreshold: 80,
+          solvedThreshold: 50,
         }),
       })
       const data = await res.json()

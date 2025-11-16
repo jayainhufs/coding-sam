@@ -1,13 +1,19 @@
 // utils/progress.ts (사용자별 로컬스토리지 네임스페이스 버전)
 import { USER_KEY, normalizeUser } from '@/lib/AuthContext'
 
-type StepKey = 'understand' | 'decompose' | 'pattern' | 'abstract' | 'pseudocode'
+type StepKey =
+  | 'understand'
+  | 'decompose'
+  | 'pattern'
+  | 'abstract'
+  | 'pseudocode'
 
 export type StepScores = Partial<Record<StepKey, number>> // 0~100
 export type ProblemProgress = {
-  scores: StepScores       // 최종 점수
-  attempts: number         // 제출 횟수
-  solvedAt?: string        // ISO date
+  scores: StepScores // 최종 점수
+  attempts: number // 제출 횟수
+  solvedAt?: string // ISO date
+  status?: 'solved' | 'in-progress' // ✅ 2. (추가) 상태 타입
 }
 export type ProgressRecord = ProblemProgress
 
@@ -23,6 +29,7 @@ function currentUserName(): string | null {
 }
 function userKey(suffix: string): string {
   const u = currentUserName()
+  // ✅ 2. (수정) AuthContext의 normalizeUser 사용
   const who = u ? normalizeUser(u) : 'anon'
   return `coding-sam:${suffix}:${who}`
 }
@@ -63,7 +70,9 @@ export function addXP(delta: number) {
   const next = getXP() + Math.max(0, Math.floor(delta))
   setXP(next)
   if (typeof window !== 'undefined') {
-    try { window.dispatchEvent(new Event('xp-updated')) } catch {}
+    try {
+      window.dispatchEvent(new Event('xp-updated'))
+    } catch {}
   }
 }
 export function onXPChanged(handler: (xp: number) => void) {
@@ -86,27 +95,52 @@ export function getProgress(problemId: string): ProblemProgress | undefined {
 export function setProgress(problemId: string, patch: Partial<ProblemProgress>) {
   const all = getAllProgress()
   const cur = all[problemId] ?? { scores: {}, attempts: 0 }
-  all[problemId] = { ...cur, ...patch, scores: { ...cur.scores, ...(patch.scores ?? {}) } }
+  all[problemId] = {
+    ...cur,
+    ...patch,
+    scores: { ...cur.scores, ...(patch.scores ?? {}) },
+  }
   if (typeof window !== 'undefined') {
     localStorage.setItem(K.PROGRESS(), JSON.stringify(all))
+    // ✅ 3. (추가) "푼 문제 0개" 버그 수정:
+    //    진행도가 변경될 때 'storage' 이벤트를 수동으로 발생시켜
+    //    app/home/page.tsx가 즉시 리-렌더링되도록 함
+    window.dispatchEvent(
+      new StorageEvent('storage', {
+        key: K.PROGRESS(), // app/home/page.tsx가 리스닝할 키
+        newValue: JSON.stringify(all),
+      }),
+    )
   }
 }
 export function markSolved(problemId: string) {
+  // (레거시) K.SOLVED() 키에도 저장
   const solved = new Set(readJSON<string[]>(K.SOLVED(), []))
   solved.add(problemId)
   if (typeof window !== 'undefined') {
     localStorage.setItem(K.SOLVED(), JSON.stringify([...solved]))
   }
-  setProgress(problemId, { solvedAt: new Date().toISOString() })
+  // ✅ 4. (핵심 버그 수정) K.PROGRESS() 키에도 'status: "solved"'를 저장
+  setProgress(problemId, {
+    solvedAt: new Date().toISOString(),
+    status: 'solved', // 👈 이 부분이 버그의 원인이었습니다.
+  })
 }
 export function getSolvedList(): string[] {
-  return readJSON<string[]>(K.SOLVED(), [])
+  // ✅ 5. (수정) K.PROGRESS()를 기준으로 "solved" 목록을 가져오도록 변경
+  // (K.SOLVED() 키는 레거시/중복이므로 PROGRESS를 신뢰)
+  const all = getAllProgress()
+  return Object.entries(all)
+    .filter(([_, data]) => data.status === 'solved')
+    .map(([problemId, _]) => problemId)
 }
 
 // === 학습률(평균 점수) 계산 ===
 export function computeLearningRate(scores: StepScores | undefined): number {
   if (!scores) return 0
-  const vals = Object.values(scores).filter((v): v is number => typeof v === 'number')
+  const vals = Object.values(scores).filter(
+    (v): v is number => typeof v === 'number',
+  )
   if (vals.length === 0) return 0
   const avg = Math.round(vals.reduce((a, b) => a + b, 0) / vals.length)
   return Math.max(0, Math.min(100, avg))
