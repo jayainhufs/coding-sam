@@ -1,54 +1,52 @@
 'use client'
 
 import { useState } from 'react'
-import { useRouter } from 'next/navigation'
 import { useAuth, USER_KEY, PREF_KEY } from '@/lib/AuthContext'
 import CodeEditor, { LanguageKey } from '@/components/CodeEditor'
 
-// 예시 문제 정의
+// ✅ 1. 예시 문제 (1-100까지 합)
 const sampleProblem = {
-  title: '예시 문제: 두 수의 합 (Two Sum)',
+  title: '예시 문제: 1부터 100까지의 합',
   description:
-    '정수 배열(nums)과 타겟(target)이 주어지면, 합이 타겟이 되는 두 숫자의 인덱스를 찾아 반환하세요. (가장 간단한 방법으로 구현해보세요)',
+    '1부터 100까지 모든 정수의 합을 구하는 코드를 작성하세요.',
   placeholderCode: {
-    python: `# 여기에 코드를 작성하세요`,
-    c: `// 여기에 코드를 작성하세요`,
-    java: `// 여기에 코드를 작성하세요`,
+    python: `# 1부터 100까지의 합을 print() 하세요`,
+    c: `// 1부터 100까지의 합을 printf() 하세요`,
+    java: `// 1부터 100까지의 합을 System.out.print() 하세요`,
   },
+  expectedOutput: '5050',
 }
 
 export default function StyleOnboardingPage() {
-  const router = useRouter()
+  // const router = useRouter() // 3. 프리뷰 오류로 주석 처리
   const { user } = useAuth()
-  const [loading, setLoading] = useState(false)
-
-  // 1. 탭 상태 ('sample' 또는 'paste')
+  const [loading, setLoading] = useState(false) // AI 분석 로딩
   const [tab, setTab] = useState<'sample' | 'paste'>('sample')
 
-  // 2. 코드 에디터 상태 (예시 문제용)
   const [language, setLanguage] = useState<LanguageKey>('python')
-  // ✅ 수정된 placeholder를 기본값으로 사용
   const [code, setCode] = useState(sampleProblem.placeholderCode.python)
-
-  // 3. 붙여넣기용 텍스트 상태
   const [pastedCode, setPastedCode] = useState('')
 
+  const [runLoading, setRunLoading] = useState(false)
+  const [runResult, setRunResult] = useState<string | null>(null) // 실행 결과 (STDOUT)
+
+  const isSampleSolved = runResult?.startsWith('✅') ?? false
+  const isPastedCodeEmpty = !pastedCode.trim()
+
   /**
-   * AI에게 스타일 분석을 요청하고 완료되면 /home로 이동
+   * (기존 함수) AI에게 스타일 분석을 요청하고 완료되면 /home로 이동
    */
   const analyzeAndFinish = async () => {
     setLoading(true)
     const codeToAnalyze = tab === 'sample' ? code : pastedCode
 
     if (!codeToAnalyze.trim()) {
-      // alert()는 프리뷰 환경에서 보이지 않을 수 있습니다.
       console.error('분석할 코드를 입력해주세요.')
       setLoading(false)
       return
     }
 
     try {
-      // 3. (신규) AI 분석 API 호출
       const res = await fetch('/api/ai/analyze-style', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -58,41 +56,103 @@ export default function StyleOnboardingPage() {
 
       if (!res.ok) throw new Error(data.error || '분석에 실패했습니다.')
 
-      // 4. 분석 결과(style)를 기존 pref에 덮어쓰기
       const currentUserName = user || localStorage.getItem(USER_KEY)
       if (currentUserName) {
         const prefKey = PREF_KEY(currentUserName)
         const existingPrefJSON = localStorage.getItem(prefKey)
-        const existingPref = existingPrefJSON ? JSON.parse(existingPrefJSON) : {}
+        const existingPref = existingPrefJSON
+          ? JSON.parse(existingPrefJSON)
+          : {}
 
         const updatedPref = {
           ...existingPref,
-          codeStyle: data.style, // 예: "readable"
+          codeStyle: data.style,
         }
 
         localStorage.setItem(prefKey, JSON.stringify(updatedPref))
       }
 
-      // 5. 홈으로 이동
-      router.push('/home')
+      // 4. ✅ router.push -> window.location.href로 변경
+      window.location.href = '/home'
     } catch (e: any) {
       console.error('스타일 분석 오류:', e)
-      // alert(`오류: ${e.message}`)
       setLoading(false)
     }
   }
 
   /**
-   * 이 단계를 건너뛰고 홈으로 이동
+   * (신규) 코드 실행 및 정답 체크 함수
+   */
+  const handleRunCode = async () => {
+    setRunLoading(true)
+    setRunResult('실행 중...')
+
+    try {
+      const res = await fetch('/api/run', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          language: language,
+          code: code,
+          stdin: '',
+        }),
+      })
+      const j = await res.json()
+
+      if (!j.ok) {
+        setRunResult(`❌ 실행 오류:\n${j.error}`)
+      } else {
+        const output = (
+          j.result?.run?.output ??
+          j.result?.stdout ??
+          ''
+        ).trim()
+
+        if (output === sampleProblem.expectedOutput) {
+          setRunResult(`✅ 정답입니다!\n실행 결과: ${output}`)
+        } else {
+          setRunResult(
+            `❌ 오답입니다.\n실행 결과: ${output}`,
+          )
+        }
+      }
+    } catch (e: any) {
+      setRunResult(`네트워크 오류: ${e.message}`)
+    } finally {
+      setRunLoading(false)
+    }
+  }
+
+  /**
+   * (기존 함수) 이 단계를 건너뛰고 홈으로 이동
    */
   const skip = () => {
-    router.push('/home')
+    // 5. ✅ router.push -> window.location.href로 변경
+    window.location.href = '/home'
   }
 
   const baseTab =
     'px-4 py-2 rounded-t-lg text-sm font-medium transition-colors'
   const activeTab = `${baseTab} bg-white border-b-2 border-white`
   const inactiveTab = `${baseTab} bg-transparent text-gray-600 hover:text-gray-900`
+
+  // ✅ 7. (수정) 버튼 비활성화 로직
+  const isAnalyzeDisabled =
+    loading ||
+    runLoading ||
+    (tab === 'sample' && !isSampleSolved) ||
+    (tab === 'paste' && isPastedCodeEmpty)
+
+  // ✅ 8. (수정) 툴팁 메시지 로직
+  const getAnalyzeButtonTitle = () => {
+    if (tab === 'sample' && !isSampleSolved) {
+      return '"코드 실행 및 정답 확인"을 눌러 정답(✅)을 먼저 받아야 합니다.'
+    }
+    if (tab === 'paste' && isPastedCodeEmpty) {
+      return '분석할 코드를 "내 코드 붙여넣기" 탭에 입력해주세요.'
+    }
+    return 'AI 스타일 분석하기'
+  }
 
   return (
     <div className="min-h-[100svh] w-full bg-gradient-to-b from-hufs-gray/30 to-white py-12 px-4">
@@ -133,6 +193,16 @@ export default function StyleOnboardingPage() {
                 {sampleProblem.description}
               </p>
 
+              {/* ✅ (추가) 기대하는 출력값 명시 */}
+              <div className="grid grid-cols-[auto_1fr] items-center gap-x-3 gap-y-1 rounded-lg border border-slate-200 bg-slate-50/80 p-3">
+                <span className="text-xs font-semibold text-slate-600">
+                  출력
+                </span>
+                <pre className="text-sm font-medium text-slate-800 bg-white rounded px-2 py-1 border border-slate-200 font-mono">
+                  {sampleProblem.expectedOutput}
+                </pre>
+              </div>
+
               {/* 언어 선택 */}
               <div className="flex items-center gap-2">
                 {(['python', 'c', 'java'] as LanguageKey[]).map((l) => (
@@ -140,8 +210,8 @@ export default function StyleOnboardingPage() {
                     key={l}
                     onClick={() => {
                       setLanguage(l)
-                      // ✅ 수정된 placeholder를 클릭 시 설정
                       setCode(sampleProblem.placeholderCode[l])
+                      setRunResult(null) // 언어 변경 시 결과창 초기화
                     }}
                     className={`px-3 py-1 rounded-full border text-sm ${
                       l === language
@@ -158,6 +228,30 @@ export default function StyleOnboardingPage() {
                 code={code}
                 onChange={setCode}
               />
+
+              {/* 코드 실행 버튼 및 결과창 */}
+              <button
+                onClick={handleRunCode}
+                disabled={runLoading || loading}
+                type="button"
+                className="pressable w-full inline-flex items-center justify-center rounded-2xl bg-white text-[#002D56] ring-2 ring-[#002D56] py-3 px-5 font-semibold shadow-sm hover:bg-[#002D56]/5 transition disabled:opacity-50"
+              >
+                {runLoading ? '실행 중...' : '코드 실행 및 정답 확인'}
+              </button>
+
+              {runResult && (
+                <pre
+                  className={`w-full h-auto rounded-xl border p-3 text-sm whitespace-pre-wrap ${
+                    runResult.startsWith('✅')
+                      ? 'border-green-300 bg-green-50 text-green-800'
+                      : runResult.startsWith('❌')
+                      ? 'border-red-300 bg-red-50 text-red-800'
+                      : 'border-slate-200 bg-slate-50'
+                  }`}
+                >
+                  {runResult}
+                </pre>
+              )}
             </div>
           ) : (
             // 2. 내 코드 붙여넣기
@@ -188,11 +282,12 @@ export default function StyleOnboardingPage() {
             </button>
             <button
               onClick={analyzeAndFinish}
-              disabled={loading}
+              disabled={isAnalyzeDisabled}
               type="button"
               className="pressable inline-flex items-center justify-center rounded-2xl bg-[#002D56] text-white font-semibold py-3 px-6 shadow-md ring-2 ring-[#002D56] hover:bg-[#002D56]/90 transition disabled:opacity-50"
+              title={getAnalyzeButtonTitle()}
             >
-              {loading ? '분석 중...' : 'AI 분석 및 완료'}
+              {loading ? '분석 중...' : '코드 스타일 분석하기'}
             </button>
           </div>
         </div>
