@@ -44,7 +44,7 @@ const STEP_LABEL: Record<StepKey, string> = {
 const PASS_LINE = 40
 
 export default function LearnWizard({ problem }: { problem: Problem }) {
-  // const router = useRouter() // 3. 프리뷰 오류로 주석 처리
+  const router = useRouter()
   const [stepIdx, setStepIdx] = useState(0)
   const step = STEP_ORDER[stepIdx]
   const T = useTemplates(problem.id)
