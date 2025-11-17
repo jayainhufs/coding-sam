@@ -44,7 +44,7 @@ const STEP_LABEL: Record<StepKey, string> = {
 const PASS_LINE = 40
 
 export default function LearnWizard({ problem }: { problem: Problem }) {
-  const router = useRouter()
+  // const router = useRouter() // 3. 프리뷰 오류로 주석 처리
   const [stepIdx, setStepIdx] = useState(0)
   const step = STEP_ORDER[stepIdx]
   const T = useTemplates(problem.id)
@@ -382,6 +382,10 @@ ${userText}`
 
   const progress = ((stepIdx + 1) / STEP_ORDER.length) * 100
 
+  // ✅ 1. (추가) "실제 코드"가 있는지 확인하는 변수
+  const codeInEditor = codeByLang[language]?.trim() ?? ''
+  const hasCodeInEditor = codeInEditor.length > 1 // 1글자 이상일 때
+
   return (
     <main className="mx-auto max-w-5xl px-4 md:px-6 py-8">
       <ProblemHeader
@@ -538,6 +542,7 @@ ${userText}`
         )}
       </section>
 
+      {/* ✅ 2. (수정) AiTutorPanel에 'hasCode' prop 추가 */}
       <AiTutorPanel
         step={step}
         stepLabel={STEP_LABEL[step]}
@@ -547,7 +552,8 @@ ${userText}`
           description: problem.description,
         }}
         buildPrompt={buildPrompt}
-        hasInputForStep={hasInputForStep}
+        hasInputForStep={hasInputForStep} // "의사코드" 입력 여부
+        hasCode={hasCodeInEditor} // "실제 코드" 입력 여부
       />
 
       {/* 하단 내비 */}
@@ -581,6 +587,7 @@ ${userText}`
               setStepIdx((i) => Math.min(STEP_ORDER.length - 1, i + 1))
             }
             className="px-5 py-2.5 rounded-xl bg-[#296B75] text-white hover:bg-[#296B75]/90 disabled:opacity-50"
+            // ✅ 5. (오류 수정) 잘못된 텍스트 제거
             disabled={step !== 'pattern' && (!canNext || scoring)}
             title={
               step === 'pattern'
