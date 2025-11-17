@@ -5,7 +5,7 @@ import LevelCardClassic from '@/components/LevelCardClassic'
 import StreakCardClassic from '@/components/StreakCardClassic'
 import RecommendedToday from '@/components/RecommendedToday'
 import SolvedPanel from '@/components/SolvedPanel'
-import { getAllProgress, getSolvedList, computeLearningRate, getXP } from '@/utils/progress'
+import { getAllProgress, getSolvedList, computeLearningRate, getXP, scoreToGrade} from '@/utils/progress'
 
 type Problem = {
   id: string
@@ -152,12 +152,14 @@ export default function HomeDashboard() {
         {/* 좌: 추천 / 우: 레벨+스트릭+풀이 */}
         <section className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6 mb-8">
           <div className="md:col-span-2">
+            {/* ✅ 2. (추가) 등급 변환 함수 전달 */}
             <RecommendedToday
-              problem={top} // ✅ 5. 'top' (랜덤 문제)이 전달됨
+              problem={top}
               xp={xp}
               streak={streak}
               progress={topProgress}
               solved={topSolved}
+              scoreToGrade={scoreToGrade}
             />
           </div>
 
@@ -187,6 +189,7 @@ export default function HomeDashboard() {
                 p={p}
                 progress={progressMap[p.id]}
                 solved={solvedSet.has(p.id)}
+                scoreToGrade={scoreToGrade} // ✅ 2. (추가) 등급 변환 함수 전달
               />
             ))}
           </div>
@@ -201,10 +204,12 @@ function ProblemCard({
   p,
   progress,
   solved,
+  scoreToGrade, // ✅ 3. (추가) prop 받기
 }: {
   p: Problem
   progress?: number
   solved?: boolean
+  scoreToGrade: (score: number) => string // ✅ 3. (추가) prop 받기
 }) {
   const pill =
     p.difficulty === 'Easy'
@@ -231,9 +236,10 @@ function ProblemCard({
       <p className="text-sm text-gray-600 mt-1 line-clamp-3">{p.description}</p>
 
       <div className="mt-2 flex flex-wrap gap-2">
+        {/* ✅ 4. (수정) "학습률" -> "학습 등급" */}
         {typeof progress === 'number' && (
           <span className="text-xs px-2 py-0.5 rounded-full bg-[#146E7A] text-white">
-            학습률 {progress}%
+            학습 등급 {scoreToGrade(progress)}
           </span>
         )}
         {solved && (

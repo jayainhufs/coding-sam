@@ -38,7 +38,7 @@ function userKey(suffix: string): string {
 const K = {
   XP: () => userKey('xp'),
   PROGRESS: () => userKey('progress'),
-  SOLVED: () => userKey('solved'),
+  SOLVED: () => userKey('solved'), // (레거시/호환용)
 }
 
 // 같은 탭에서도 즉시 반영되도록 커스텀 이벤트
@@ -144,4 +144,11 @@ export function computeLearningRate(scores: StepScores | undefined): number {
   if (vals.length === 0) return 0
   const avg = Math.round(vals.reduce((a, b) => a + b, 0) / vals.length)
   return Math.max(0, Math.min(100, avg))
+}
+
+// ✅ 6. (추가) 점수를 등급으로 변환하는 함수
+export function scoreToGrade(score: number): string {
+  if (score >= 70) return 'A'
+  if (score >= 50) return 'B'
+  return 'C'
 }

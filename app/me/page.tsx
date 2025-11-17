@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react'
 import Image from 'next/image'
 import UserRadar from '@/components/UserRadar'
 import EvaluationPanel from '@/components/EvaluationPanel'
-import { getAllProgress, computeLearningRate } from '@/utils/progress'
+import { getAllProgress, computeLearningRate, scoreToGrade } from '@/utils/progress'
 import { useAuth, USER_KEY, PREF_KEY } from '@/lib/AuthContext'
 
 // --- 표시용 텍스트 매핑 (기존 유지) ---
@@ -139,8 +139,11 @@ export default function MyPage() {
               <dd className="font-semibold">{solvedCount}개</dd>
             </div>
             <div className="flex items-center justify-between">
-              <dt className="text-slate-600">평균 학습률</dt>
-              <dd className="font-semibold">{avgLearningRate}%</dd>
+              <dt className="text-slate-600">평균 학습 등급</dt>
+              {/* ✅ 4. (수정) "%" -> "등급" */}
+              <dd className="font-semibold">
+                {scoreToGrade(avgLearningRate)} 등급
+              </dd>
             </div>
           </dl>
         </aside>

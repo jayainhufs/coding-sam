@@ -15,12 +15,14 @@ export default function RecommendedToday({
   streak,
   progress,          // ⬅ 추가: 학습률 %
   solved,            // ⬅ 추가: 풀었음 배지
+  scoreToGrade,
 }: {
   problem?: Problem
   xp: number
   streak: number
   progress?: number
   solved?: boolean
+  scoreToGrade: (score: number) => string // ✅ 1. (추가) prop 타입 정의
 }) {
   if (!problem) {
     return (
@@ -56,10 +58,11 @@ export default function RecommendedToday({
 
           {/* 학습률/풀었음 배지 */}
           <div className="mt-2 flex flex-wrap gap-2">
-            {typeof progress === 'number' && (
-              <span className="text-xs px-2 py-0.5 rounded-full bg-[#146E7A] text-white">
-                학습률 {progress}%
-              </span>
+          {/* ✅ 2. (수정) "학습률" -> "학습 등급" */}
+          {typeof progress === 'number' && (
+            <span className="px-2.5 py-1 rounded-full text-xs font-semibold bg-green-100 text-green-700">
+              학습 등급 {scoreToGrade(progress)}
+            </span>
             )}
             {solved && (
               <span className="text-xs px-2 py-0.5 rounded-full bg-[#002D56] text-white">
