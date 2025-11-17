@@ -41,7 +41,7 @@ const STEP_LABEL: Record<StepKey, string> = {
   pseudocode: '의사코드 → 코드/실행',
 }
 
-const PASS_LINE = 40
+const PASS_LINE = 50
 
 export default function LearnWizard({ problem }: { problem: Problem }) {
   const router = useRouter()
@@ -213,7 +213,7 @@ export default function LearnWizard({ problem }: { problem: Problem }) {
         '흐름',
         '정의',
         '전이',
-        '경계',
+        '경계'
       ]),
       pseudocode: scoreOf(pseudocode, [
         'for',
