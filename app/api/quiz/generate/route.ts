@@ -272,36 +272,46 @@ export async function POST(req: Request) {
       ],
     }
 
-    const order: Array<'medium'|'hard'|'applied'> = ['medium','hard','applied']
+const order: Array<'medium'|'hard'|'applied'> = ['medium','hard','applied']
+    
+    // ✅ [수정] 6개를 억지로 채우는 'while' 루프 대신, 'fallbackBank'를 순회하는 'for...of' 루프로 변경
     for (const diff of order) {
-      while (gotCounts[diff] < targetCounts[diff]) {
-        const bank = fallbackBank[diff]
-        const pick = bank[gotCounts[diff] % bank.length]
+      const bank = fallbackBank[diff] // 'bank' 정의를 루프 안으로 이동
+
+      // 'while' 대신 'for...of'로 변경
+      for (const pick of bank) {
+        // 1. 목표 개수(예: 2개)를 달성했으면 이 난이도의 예비 문제 탐색 중단
+        if (gotCounts[diff] >= targetCounts[diff]) {
+          break
+        }
+
         const sig = optionsSig(pick.opts)
         let qtext = pick.q
-        // 혹시라도 중복되면 번호를 덧붙여 강제 유니크
-        let suffix = 1
-        while (seenQ.has(norm(qtext)) || (sig && seenOpts.has(sig))) {
-          suffix++
-          qtext = `${pick.q} (${suffix})`
+        const qKey = norm(qtext) // qKey 추가
+
+        // 2. ✅ [핵심 수정] 꼬리표(suffix)를 붙이는 'while' 루프 대신,
+        //    중복 시 'continue' (건너뛰기)로 변경
+        if (seenQ.has(qKey) || (sig && seenOpts.has(sig))) {
+          continue // 중복된 질문/보기 세트이므로 추가하지 않고 건너뜀
         }
+
+        // 3. 중복이 아닐 때만 normalized 배열에 추가
         normalized.push({
           id: `fallback-${diff}-${gotCounts[diff] + 1}`,
           problemId: body.problemId,
           originalProblem: body.originalProblem,
           type: 'mcq',
           difficulty: diff,
-          question: qtext,
+          question: qtext, // 원본 질문
           options: pick.opts,
           answer: pick.ans,
           explanation: pick.exp,
         })
-        seenQ.add(norm(qtext))
+        seenQ.add(qKey) // qKey로 변경
         if (sig) seenOpts.add(sig)
-        gotCounts[diff]++
+          gotCounts[diff]++
+        }
       }
-    }
-
     // 최종 6개만
     return NextResponse.json({ ok: true, items: normalized.slice(0, 6) })
   } catch (err) {
@@ -316,9 +326,9 @@ export async function POST(req: Request) {
       type: 'mcq',
       difficulty: d,
       question:
-        d === 'medium' ? `${title}의 출력 정의로 가장 적절한 것은? (${i+1})`
-        : d === 'hard' ? `${title}의 경계 케이스로 알맞은 것은? (${i+1})`
-        : `${title} 의사코드에서 우선 확정해야 할 요소는? (${i+1})`,
+        d === 'medium' ? `${title}의 출력 정의로 가장 적절한 것은?`
+        : d === 'hard' ? `${title}의 경계 케이스로 알맞은 것은?`
+        : `${title} 의사코드에서 우선 확정해야 할 요소는?`,
       options:
         d === 'medium'
           ? ['문제가 요구한 최종 결과', '입력 길이', '중간 계산값', '디버그 문자열']
