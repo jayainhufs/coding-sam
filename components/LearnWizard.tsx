@@ -15,6 +15,7 @@ import {
   type StepScores, type ProblemProgress,
 } from '@/utils/progress'
 import { LanguageKey } from './CodeEditor'
+import { USER_KEY, PREF_KEY } from '@/lib/AuthContext'
 
 type Problem = {
   id: string
@@ -40,16 +41,15 @@ const STEP_LABEL: Record<StepKey, string> = {
   pseudocode: '의사코드 → 코드/실행',
 }
 
-// 사용자에게는 점수 미노출, 내부 판단만
 const PASS_LINE = 40
 
 export default function LearnWizard({ problem }: { problem: Problem }) {
-  // const router = useRouter() // 3. 프리뷰 오류로 주석 처리
+  const router = useRouter()
   const [stepIdx, setStepIdx] = useState(0)
   const step = STEP_ORDER[stepIdx]
   const T = useTemplates(problem.id)
 
-  // 입력 상태
+  // ... (입력 상태: understand, decompose, etc.) ...
   const [understand, setUnderstand] = useState('')
   const [decompose, setDecompose] = useState('')
   const [pattern, setPattern] = useState('')
@@ -65,12 +65,13 @@ export default function LearnWizard({ problem }: { problem: Problem }) {
     java: '',
   })
 
-  // 제출/점수(제출용 평균)
+  // ... (제출/점수: scores, avgScore, isCodeVerified) ...
   const [scores, setScores] = useState<StepScores>({})
   const [avgScore, setAvgScore] = useState<number>(0)
-
-  // ✅ 1. (추가) 코드 실행이 모든 샘플을 통과했는지 여부를 저장할 state
   const [isCodeVerified, setIsCodeVerified] = useState(false)
+
+  // ✅ 4. (추가) 학생 프로필(스타일)을 저장할 state
+  const [studentProfile, setStudentProfile] = useState<any>(null)
 
   // 초기 진행 불러오기
   useEffect(() => {
@@ -84,7 +85,24 @@ export default function LearnWizard({ problem }: { problem: Problem }) {
     setAvgScore(prevAvg)
   }, [problem.id])
 
-  // 현재 단계 텍스트
+  // ✅ 5. (추가) 마운트 시 학생 프로필(스타일) 로드
+  useEffect(() => {
+    try {
+      const userName = localStorage.getItem(USER_KEY)
+      if (userName) {
+        const prefKey = PREF_KEY(userName)
+        const prefData = localStorage.getItem(prefKey)
+        if (prefData) {
+          setStudentProfile(JSON.parse(prefData))
+        }
+      }
+    } catch (e) {
+      console.error('Failed to load student profile', e)
+    }
+  }, []) // 마운트 시 1회 실행
+
+  // ... (getCurrentText, useEffect - AI 채점, canNext, scoreOf, goToQuiz, handleSubmit) ...
+  // (LearnWizard.tsx의 기존 함수들)
   const getCurrentText = (): string => {
     if (step === 'understand') return understand
     if (step === 'decompose') return decompose
@@ -92,58 +110,50 @@ export default function LearnWizard({ problem }: { problem: Problem }) {
     if (step === 'abstract') return `입력:\n${abstractIn}\n\n출력:\n${abstractOut}`
     return pseudocode
   }
-
-  // AI 채점 (0.4초 디바운스)
-  const [aiScore, setAiScore] = useState<number>(0) // 내부 판단용
+  const [aiScore, setAiScore] = useState<number>(0)
   const [aiTips, setAiTips] = useState<string[]>([])
   const [scoring, setScoring] = useState(false)
   const debounceId = useRef<number | null>(null)
-
   useEffect(() => {
     const text = (getCurrentText() || '').trim()
-
     if (debounceId.current) window.clearTimeout(debounceId.current)
-    debounceId.current = window.setTimeout(async () => {
-      if (!text) {
-        setAiScore(0)
-        setAiTips([])
-        return
-      }
-
-      setScoring(true)
-      try {
-        const r = await fetch('/api/ai/feedback/score', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ step, text }),
-        })
-        const j = await r.json()
-        if (!r.ok || !j?.ok) throw new Error(j?.error || 'score api error')
-        const score = typeof j.score === 'number' ? j.score : 0
-        setAiScore(score)
-        setAiTips(Array.isArray(j.tips) ? j.tips : [])
-      } catch {
-        // 폴백(길이 기반)
-        const crude = text.length > 120 ? 62 : text.length > 60 ? 58 : 40
-        setAiScore(crude)
-        setAiTips(
-          crude >= PASS_LINE ? [] : ['예시·수치·경계 케이스를 2개 이상 추가'],
-        )
-      } finally {
-        setScoring(false)
-      }
-    }, 400)
-
+    debounceId.current = window.setTimeout(
+      async () => {
+        if (!text) {
+          setAiScore(0)
+          setAiTips([])
+          return
+        }
+        setScoring(true)
+        try {
+          const r = await fetch('/api/ai/feedback/score', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ step, text }),
+          })
+          const j = await r.json()
+          if (!r.ok || !j?.ok) throw new Error(j?.error || 'score api error')
+          const score = typeof j.score === 'number' ? j.score : 0
+          setAiScore(score)
+          setAiTips(Array.isArray(j.tips) ? j.tips : [])
+        } catch {
+          const crude = text.length > 120 ? 62 : text.length > 60 ? 58 : 40
+          setAiScore(crude)
+          setAiTips(
+            crude >= PASS_LINE ? [] : ['예시·수치·경계 케이스를 2개 이상 추가'],
+          )
+        } finally {
+          setScoring(false)
+        }
+      },
+      400,
+    )
     return () => {
       if (debounceId.current) window.clearTimeout(debounceId.current)
     }
   }, [step, understand, decompose, pattern, abstractIn, abstractOut, pseudocode])
-
-  // ▶ 패턴/의사코드는 항상 이동 가능
   const canNext =
     step === 'pseudocode' || step === 'pattern' ? true : aiScore >= PASS_LINE
-
-  // 제출용 임시 점수(기존 로직 유지)
   const scoreOf = (text: string, keywords: string[]) => {
     if (!text.trim()) return 0
     let s = 40
@@ -151,29 +161,25 @@ export default function LearnWizard({ problem }: { problem: Problem }) {
     for (const k of keywords) if (t.includes(k)) s += 12
     return Math.min(100, s)
   }
-
-  // 퀴즈 이동
-  function goToQuiz(problemId: string, latestStep: StepKey, latestText: string) {
+  function goToQuiz(
+    problemId: string,
+    latestStep: StepKey,
+    latestText: string,
+  ) {
     const qs = new URLSearchParams({
       step: latestStep,
       text: latestText,
       problem: problem.description || problem.title || '',
     }).toString()
-    // router.push(`/quiz/${problemId}?${qs}`) // 4. 프리뷰 오류로 window.location.href 사용
     window.location.href = `/quiz/${problemId}?${qs}`
   }
-
-  // 제출
   async function handleSubmit() {
-    // ✅ 2. (추가) 제출 버튼이 눌렸을 때, 통과 여부를 다시 한번 확인
     if (!isCodeVerified) {
-      // (참고) confirm/alert는 프리뷰에서 안 보일 수 있음
       alert(
         '"전체 샘플 실행"을 눌러 모든 샘플(✅)을 통과했는지 다시 확인해주세요.',
       )
       return
     }
-
     const s: StepScores = {
       understand: scoreOf(understand, [
         '입력',
@@ -222,10 +228,8 @@ export default function LearnWizard({ problem }: { problem: Problem }) {
     const avg = vals.length
       ? Math.round(vals.reduce((a, b) => a + (b ?? 0), 0) / vals.length)
       : 0
-
     const prev = getProgressRec(problem.id) as ProblemProgress | undefined
     const attemptsPrev = prev?.attempts ?? 0
-
     try {
       const res = await fetch('/api/ai/feedback/evaluate', {
         method: 'POST',
@@ -245,37 +249,30 @@ export default function LearnWizard({ problem }: { problem: Problem }) {
       })
       const data = await res.json()
       if (!res.ok || !data?.ok) throw new Error(data?.error || '서버 평가 실패')
-
       const attemptsNext =
         typeof data.attempts === 'number' ? data.attempts : attemptsPrev + 1
       const finalAvg = typeof data.finalAvg === 'number' ? data.finalAvg : avg
       const solvedNow = Boolean(data.solvedNow)
-
       setProgress(problem.id, { scores: s, attempts: attemptsNext })
       if (solvedNow) {
-        markSolved(problem.id) // ✅ 'utils/progress'의 수정된 함수 호출
+        markSolved(problem.id)
       }
-
       const bonus = Math.round((finalAvg / 100) * 20)
       addXP(30 + bonus)
       setScores(s)
       setAvgScore(finalAvg)
-
       goToQuiz(problem.id, 'pseudocode', pseudocode || '')
     } catch {
       const attempts = attemptsPrev + 1
       setProgress(problem.id, { scores: s, attempts })
-      markSolved(problem.id) // ✅ 'utils/progress'의 수정된 함수 호출
+      markSolved(problem.id)
       const bonus = Math.round((avg / 100) * 20)
       addXP(30 + bonus)
       setScores(s)
       setAvgScore(avg)
-
       goToQuiz(problem.id, 'pseudocode', pseudocode || '')
     }
   }
-
-  // 현재 단계 입력 유무 체크
   const hasInputForStep = (st: StepKey) => {
     if (st === 'understand') return !!understand.trim()
     if (st === 'decompose') return !!decompose.trim()
@@ -285,37 +282,34 @@ export default function LearnWizard({ problem }: { problem: Problem }) {
     return false
   }
 
-  // 30초 무활동 시 힌트 제안
-  useEffect(() => {
-    const IDLE_MS = 30_000
-    const timer = setTimeout(() => {
-      const text =
-        step === 'understand'
-          ? understand
-          : step === 'decompose'
-          ? decompose
-          : step === 'pattern'
-          ? pattern
-          : step === 'abstract'
-          ? `${abstractIn}\n${abstractOut}`
-          : pseudocode
+  // ✅ 6. (삭제) 30초 힌트 제안 useEffect (요청에 따라 삭제)
 
-      if (!text.trim() || text.trim().length < 10) {
-        // (참고) confirm()은 프리뷰 환경에서 보이지 않을 수 있음
-        const ok = window.confirm(
-          '30초 동안 입력이 없었어요. 이 단계에 맞는 힌트를 받아볼까요?',
-        )
-        if (ok)
-          window.dispatchEvent(
-            new CustomEvent('AITUTOR_HINT', { detail: { step } }),
-          )
-      }
-    }, IDLE_MS)
-    return () => clearTimeout(timer)
-  }, [step, understand, decompose, pattern, abstractIn, abstractOut, pseudocode])
-
-  // AI 프롬프트 빌더
+  // ✅ 7. (수정) AI 프롬프트 빌더
   const buildPrompt = useMemo(() => {
+    // 7a. (수정) 'code-suggest'를 위한 새 LLM 프롬프트 템플릿
+    const codeSuggestMimicPrompt = `### 역할(Role)
+당신은 학생의 고유한 코딩 스타일과 논리 패턴을 '모방(mimicking)'하여 힌트를 주는 AI 프로그래밍 조교입니다. 이때, 제안하는 내용은 학습자에게 친화적인(learner-friendly) 톤을 유지해야 합니다 [1].
+
+### 핵심 임무(Core Task)
+학생이 자신의 논리 흐름을 유지하며 막힌 부분을 해결하도록 돕는 것입니다.
+
+### 엄격한 제약사항(Strict Constraints)
+1.  **절대(NEVER)** 당신의 '더 나은', '최적의', '효율적인' 코드를 먼저 제안하지 마십시오.
+2.  오직 학생의 고유한 스타일을 반영한 코드를 생성해야 합니다.
+3.  주석 설명을 제한하고, 학생이 현재 작성 중인 코드의 맥락에 바로 이어지는 '다음 단계'의 코드 스니펫(snippet)만 제공하십시오(1~2줄).
+4.  제시된 '스타일 프로필'을 반드시 준수해야 합니다.
+
+### 입력 1: 학생 스타일 프로필 (JSON)
+${JSON.stringify(studentProfile ?? { styleSummary: '기본 스타일 사용' }, null, 2)}
+
+### 입력 2: 학생이 현재 작성 중인 코드 (Incomplete Code)
+{current_incomplete_code}
+
+### 출력 (Your Response)
+[학생의 스타일을 모방하여, 입력 2의 코드를 논리적으로 이어받는 다음 단계의 코드 스니펫]
+`.trim()
+
+    // 7b. (기존) 'hint', 'request' 모드용 프롬프트
     const goal = `당신은 학습자를 5단계로 코칭하는 한국어 코딩 튜터입니다.
 ① 이해: 요구/입·출력/제약/엣지를 1문단으로 요약(제약→복잡도 연결, 반례 1줄)
 ② 분해: 3~7 하위 단계(입력→핵심→출력), 각 단계의 상태/전이/예외를 1줄씩
@@ -336,7 +330,20 @@ export default function LearnWizard({ problem }: { problem: Problem }) {
       pseudocode:
         '의사코드 단계: 10~20줄 + 불변식/종료조건/복잡도 + 단위테스트.',
     }
+
     return (st: StepKey, mode: AiMode) => {
+      // 7c. (수정) 'code-suggest' 모드 분기
+      if (mode === 'code-suggest') {
+        // 'code-suggest'는 5단계(pseudocode)의 "실제 코드 에디터" 기준
+        const currentCode = codeByLang[language] ?? ''
+        return codeSuggestMimicPrompt.replace(
+          '{current_incomplete_code}',
+          currentCode,
+        )
+      }
+
+      // 7d. (기존) 'hint', 'request' 로직
+      // "요청" 또는 "힌트"는 5단계의 '의사코드' textarea를 사용
       const userText =
         st === 'understand'
           ? understand
@@ -346,7 +353,7 @@ export default function LearnWizard({ problem }: { problem: Problem }) {
           ? pattern
           : st === 'abstract'
           ? `입력:\n${abstractIn}\n\n출력:\n${abstractOut}`
-          : pseudocode
+          : pseudocode // 5단계일 경우 '의사코드' textarea
       const hasInput = Boolean(userText.trim())
       if (mode === 'hint') {
         const head = hasInput
@@ -358,17 +365,9 @@ ${head}현재 단계에서 채워야 할 구체 항목을 질문/체크리스트
 학습자 입력:
 ${userText || '(없음)'}`
       }
-      if (mode === 'code-suggest') {
-        if (!hasInput)
-          return `${base}
-${guide[st]}
-현재 입력이 비어있습니다. 2~3개 질문으로 요구사항을 확인한 뒤, 짧은 의사코드/스니펫(10~20줄)을 제시하세요.`
-        return `${base}
-${guide[st]}
-학습자 입력을 반영해 짧은 의사코드 또는 10~20줄 스니펫을 제시하세요.
-학습자 입력:
-${userText}`
-      }
+
+      // (기존 'code-suggest' 로직 삭제됨)
+
       if (!hasInput)
         return `${base}
 ${guide[st]}
@@ -378,11 +377,21 @@ ${guide[st]}
 학습자 입력:
 ${userText}`
     }
-  }, [understand, decompose, pattern, abstractIn, abstractOut, pseudocode])
+  }, [
+    understand,
+    decompose,
+    pattern,
+    abstractIn,
+    abstractOut,
+    pseudocode,
+    studentProfile, // ✅ 8. (추가) 의존성
+    codeByLang, // ✅ 8. (추가) 의존성
+    language, // ✅ 8. (추가) 의존성
+  ])
 
   const progress = ((stepIdx + 1) / STEP_ORDER.length) * 100
 
-  // ✅ 1. (추가) "실제 코드"가 있는지 확인하는 변수
+  // "실제 코드"가 있는지 확인하는 변수
   const codeInEditor = codeByLang[language]?.trim() ?? ''
   const hasCodeInEditor = codeInEditor.length > 1 // 1글자 이상일 때
 
@@ -529,7 +538,6 @@ ${userText}`
               onChange={(e) => setPseudocode(e.target.value)}
             />
 
-            {/* ✅ 3. (수정) EditorRunPanel에 onValidationChange prop 전달 */}
             <EditorRunPanel
               language={language}
               setLanguage={setLanguage}
@@ -542,7 +550,6 @@ ${userText}`
         )}
       </section>
 
-      {/* ✅ 2. (수정) AiTutorPanel에 'hasCode' prop 추가 */}
       <AiTutorPanel
         step={step}
         stepLabel={STEP_LABEL[step]}
@@ -567,16 +574,15 @@ ${userText}`
         </button>
 
         {step === 'pseudocode' ? (
-          // ✅ 4. (수정) "제출" 버튼
+          // "제출" 버튼
           <button
             onClick={handleSubmit}
             className="px-5 py-2.5 rounded-xl bg-[#296B75] text-white hover:bg-[#296B75]/90 disabled:opacity-50"
-            // ✅ (수정) isCodeVerified state로 비활성화
             disabled={!isCodeVerified}
             title={
               !isCodeVerified
                 ? '"전체 샘플 실행"을 눌러 모든 샘플(✅)을 통과해야 제출할 수 있습니다.'
-                : '제출'
+                : '제출' // ✅ [오류 수정] 콜론(:) 추가
             }
           >
             제출
@@ -587,7 +593,6 @@ ${userText}`
               setStepIdx((i) => Math.min(STEP_ORDER.length - 1, i + 1))
             }
             className="px-5 py-2.5 rounded-xl bg-[#296B75] text-white hover:bg-[#296B75]/90 disabled:opacity-50"
-            // ✅ 5. (오류 수정) 잘못된 텍스트 제거
             disabled={step !== 'pattern' && (!canNext || scoring)}
             title={
               step === 'pattern'
