@@ -102,7 +102,7 @@ export default function SolvedPanel() {
                     <span className="rounded-full bg-[#002D56]/90 px-1.5 py-0.5 text-[10px] font-semibold text-white">
                       학습 등급 {scoreToGrade(it.rate)}
                     </span>
-                    {it.attempts > 1 && (
+                    {it.attempts > 0 && (
                       <span className="rounded-full bg-slate-100 px-1.5 py-0.5 text-[10px] font-medium text-slate-700">
                         시도 {it.attempts}회
                       </span>

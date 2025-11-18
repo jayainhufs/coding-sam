@@ -18,7 +18,9 @@
     "difficulty": "Easy",
     "tags": ["array", "hashmap"],
     "samples": [
-      { "input": "4 9\n2 7 11 15\n", "output": "0 1\n" }
+      { "input": "4 9\n2 7 11 15\n", "output": "0 1\n" },
+      { "input": "5 10\n1 15 6 3 4\n", "output": "2 4\n" },
+      { "input": "5 -3\n-1 4 2 -5 3\n", "output": "2 3\n" }
     ]
   }
 ]

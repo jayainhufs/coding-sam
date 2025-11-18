@@ -11,26 +11,43 @@ export default function EditorRunPanel({
   codeByLang,
   setCodeByLang,
   samples,
-  onValidationChange, // ✅ 4. (추가) 부모에게 상태를 전달할 콜백
+  onValidationChange,
+  onPassCountChange, // ✅ 1. (추가) 통과 개수 전달 콜백
 }: {
   language: LanguageKey
   setLanguage: (l: LanguageKey) => void
   codeByLang: Record<LanguageKey, string>
   setCodeByLang: (next: Record<LanguageKey, string>) => void
   samples?: { input: string; output: string }[]
-  onValidationChange: (isValid: boolean) => void // ✅ 4. (추가) 타입
+  onValidationChange: (isValid: boolean) => void
+  onPassCountChange?: (count: number) => void // ✅ 1. (추가) 타입 정의
 }) {
-  // 'runAllSamples' 훅에서 가져오기
   const { stdout, setStdout, run, runAllSamples, running } = useRunner(language)
 
-  // ✅ 5. (추가) stdout(결과창)이 변경될 때마다 부모(LearnWizard)에게 통과 여부 전달
   useEffect(() => {
+    // ✅ 2. (수정) stdout 분석하여 통과 개수 계산
+    // stdout 형식: "✅ 모든 샘플 통과! (3/3)" 또는 "❌ 1/3개 샘플 통과"
+    let passCount = 0
+    if (stdout.includes('✅ 통과')) {
+      // "✅ 통과" 문구의 개수를 세거나, 요약 줄을 파싱
+      const matches = stdout.match(/✅ 통과/g)
+      passCount = matches ? matches.length : 0
+    }
+    
+    // (더 정확한 방법: useRunner가 passCount를 반환하게 하는 것이 좋지만,
+    //  여기서는 stdout 파싱으로 간단히 구현)
+    
     if (stdout.startsWith('✅ 모든 샘플 통과!')) {
       onValidationChange(true)
     } else {
       onValidationChange(false)
     }
-  }, [stdout, onValidationChange])
+
+    // ✅ 3. (추가) 부모에게 통과 개수 전달
+    if (onPassCountChange) {
+      onPassCountChange(passCount)
+    }
+  }, [stdout, onValidationChange, onPassCountChange])
 
   function updateCode(next: string) {
     setCodeByLang({ ...codeByLang, [language]: next })
@@ -38,7 +55,6 @@ export default function EditorRunPanel({
     localStorage.setItem(key, next)
   }
 
-  // 단일 샘플 실행
   const runSampleByIndex = (index: number) => {
     const s = samples?.[index]
     if (!s) return
@@ -47,13 +63,14 @@ export default function EditorRunPanel({
 
   return (
     <>
+      {/* ... (UI 코드는 기존과 동일) ... */}
       <div className="flex items-center gap-2 mb-2">
         {(['python', 'c', 'java'] as LanguageKey[]).map((l) => (
           <button
             key={l}
             onClick={() => {
               setLanguage(l)
-              setStdout('') // 언어 변경 시 결과창 비우기
+              setStdout('')
             }}
             className={`px-3 py-1.5 rounded-full border text-sm ${
               l === language
@@ -75,7 +92,6 @@ export default function EditorRunPanel({
         onChange={updateCode}
       />
 
-      {/* 결과창(stdout)에 정답/오답/오류에 따른 스타일링 */}
       <pre
         className={`w-full h-auto max-h-48 overflow-auto rounded-xl border p-3 mt-4 text-sm whitespace-pre-wrap break-words ${
           stdout.startsWith('✅ 모든 샘플 통과!')
@@ -84,14 +100,13 @@ export default function EditorRunPanel({
             ? 'border-green-300 bg-green-50 text-green-800'
             : stdout.startsWith('❌')
             ? 'border-red-300 bg-red-50 text-red-800'
-            : 'border-slate-200 bg-slate-50 text-slate-700' // 기본 또는 '실행 중'
+            : 'border-slate-200 bg-slate-50 text-slate-700'
         }`}
       >
         {stdout || '실행 결과가 여기에 표시됩니다.'}
       </pre>
 
       <div className="mt-3 flex flex-wrap items-center gap-2">
-        {/* "전체 샘플 실행" 버튼 */}
         <button
           onClick={() =>
             runAllSamples(codeByLang[language] ?? '', samples ?? [])
@@ -103,11 +118,10 @@ export default function EditorRunPanel({
           {running ? '실행 중...' : '전체 샘플 실행'}
         </button>
 
-        {/* "단일 샘플 실행" 버튼들 */}
         {(samples ?? []).map((_, i) => (
           <button
             key={i}
-            onClick={() => runSampleByIndex(i)} // 인덱스(0, 1, 2...)
+            onClick={() => runSampleByIndex(i)}
             className="px-3 py-2 rounded-xl border border-slate-300 hover:bg-gray-50 disabled:opacity-50"
             disabled={running}
             title={`샘플 ${i + 1}번 케이스만 실행합니다.`}

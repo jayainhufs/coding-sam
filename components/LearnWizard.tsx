@@ -69,7 +69,8 @@ export default function LearnWizard({ problem }: { problem: Problem }) {
   const [scores, setScores] = useState<StepScores>({})
   const [avgScore, setAvgScore] = useState<number>(0)
   const [isCodeVerified, setIsCodeVerified] = useState(false)
-
+  // ✅ 4. (추가) 통과한 테스트 케이스 개수 state
+  const [passCount, setPassCount] = useState(0)
   // ✅ 4. (추가) 학생 프로필(스타일)을 저장할 state
   const [studentProfile, setStudentProfile] = useState<any>(null)
 
@@ -173,12 +174,21 @@ export default function LearnWizard({ problem }: { problem: Problem }) {
     }).toString()
     window.location.href = `/quiz/${problemId}?${qs}`
   }
-  async function handleSubmit() {
+async function handleSubmit() {
+    // ✅ 1. (수정) 전체 샘플 미통과 시 사용자 확인 (강제 통과 가능)
+    let forcedVerified = isCodeVerified
+
     if (!isCodeVerified) {
-      alert(
-        '"전체 샘플 실행"을 눌러 모든 샘플(✅)을 통과했는지 다시 확인해주세요.',
+      // alert 대신 confirm을 사용하여 선택권 부여
+      const proceed = window.confirm(
+        '모든 샘플(✅)을 통과하지 못했습니다. 그래도 제출하시겠습니까?',
       )
-      return
+      if (!proceed) {
+        return // 취소 시 중단
+      }
+      // 확인 시 강제로 통과 상태로 설정
+      forcedVerified = true
+      setIsCodeVerified(true) // UI 반영
     }
     const s: StepScores = {
       understand: scoreOf(understand, [
@@ -215,14 +225,19 @@ export default function LearnWizard({ problem }: { problem: Problem }) {
         '전이',
         '경계'
       ]),
-      pseudocode: scoreOf(pseudocode, [
-        'for',
-        'while',
-        'if',
-        '불변식',
-        '복잡도',
-        '테스트',
-      ]),
+      pseudocode: (() => {
+        let baseScore = scoreOf(pseudocode, [
+          'for',
+          'while',
+          'if',
+          '불변식',
+          '복잡도',
+          '테스트',
+        ])
+        // 테스트 케이스 가산점 (최대 3개 * 12점 = 36점)
+        const testBonus = passCount * 12
+        return Math.min(100, baseScore + testBonus)
+      })(),
     }
     const vals = Object.values(s)
     const avg = vals.length
@@ -244,7 +259,7 @@ export default function LearnWizard({ problem }: { problem: Problem }) {
           },
           aiRequestCount: 0,
           hintCount: 0,
-          solvedThreshold: 80,
+          solvedThreshold: 20,
         }),
       })
       const data = await res.json()
@@ -252,7 +267,7 @@ export default function LearnWizard({ problem }: { problem: Problem }) {
       const attemptsNext =
         typeof data.attempts === 'number' ? data.attempts : attemptsPrev + 1
       const finalAvg = typeof data.finalAvg === 'number' ? data.finalAvg : avg
-      const solvedNow = Boolean(data.solvedNow)
+      const solvedNow = Boolean(data.solvedNow) || forcedVerified
       setProgress(problem.id, { scores: s, attempts: attemptsNext })
       if (solvedNow) {
         markSolved(problem.id)
@@ -265,7 +280,10 @@ export default function LearnWizard({ problem }: { problem: Problem }) {
     } catch {
       const attempts = attemptsPrev + 1
       setProgress(problem.id, { scores: s, attempts })
-      markSolved(problem.id)
+      // ✅ 3. (수정) 에러 시에도 강제 통과 상태라면 해결 처리
+      if (forcedVerified) {
+        markSolved(problem.id)
+      }
       const bonus = Math.round((avg / 100) * 20)
       addXP(30 + bonus)
       setScores(s)
@@ -545,6 +563,7 @@ ${userText}`
               setCodeByLang={setCodeByLang}
               samples={problem.samples}
               onValidationChange={setIsCodeVerified}
+              onPassCountChange={setPassCount} // ✅ 3. (추가) 통과 개수 전달
             />
           </>
         )}
@@ -578,12 +597,6 @@ ${userText}`
           <button
             onClick={handleSubmit}
             className="px-5 py-2.5 rounded-xl bg-[#296B75] text-white hover:bg-[#296B75]/90 disabled:opacity-50"
-            disabled={!isCodeVerified}
-            title={
-              !isCodeVerified
-                ? '"전체 샘플 실행"을 눌러 모든 샘플(✅)을 통과해야 제출할 수 있습니다.'
-                : '제출' // ✅ [오류 수정] 콜론(:) 추가
-            }
           >
             제출
           </button>
