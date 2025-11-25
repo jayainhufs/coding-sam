@@ -174,10 +174,10 @@ export default function LearnWizard({ problem }: { problem: Problem }) {
     }).toString()
     window.location.href = `/quiz/${problemId}?${qs}`
   }
-async function handleSubmit() {
+  async function handleSubmit() {
     // ✅ 1. (수정) 전체 샘플 미통과 시 사용자 확인 (강제 통과 가능)
     let forcedVerified = isCodeVerified
-
+  
     if (!isCodeVerified) {
       // alert 대신 confirm을 사용하여 선택권 부여
       const proceed = window.confirm(
@@ -290,7 +290,27 @@ async function handleSubmit() {
       setAvgScore(avg)
       goToQuiz(problem.id, 'pseudocode', pseudocode || '')
     }
-  }
+    // ✅ Add style analysis API call after successful evaluation
+    const styleRes = await fetch('/api/ai/analyze-style', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        code: codeByLang[language],
+        current_profile: studentProfile,
+      }),
+    })
+    const styleData = await styleRes.json();
+    
+    if (styleData?.ok && styleData.profile) {
+      setStudentProfile(styleData.profile);
+      // Update localStorage
+      const userName = localStorage.getItem(USER_KEY);
+      if (userName) {
+        const prefKey = PREF_KEY(userName);
+        localStorage.setItem(prefKey, JSON.stringify(styleData.profile));
+      }
+    }
+  }  
   const hasInputForStep = (st: StepKey) => {
     if (st === 'understand') return !!understand.trim()
     if (st === 'decompose') return !!decompose.trim()

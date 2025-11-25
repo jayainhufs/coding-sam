@@ -43,6 +43,18 @@ const systemPrompt = `
 
 // 4. API 라우트 핸들러
 export async function POST(req: Request) {
+  const { code, current_profile } = await req.json();
+  
+  // Conditional prompt based on existing profile
+  const systemPrompt = current_profile 
+    ? `Update the existing coding style profile based on new code. Consider:\n`
+      + `1. Consistency with previous patterns\n`
+      + `2. Evolution in coding approach\n`
+      + `3. New techniques adopted\n`
+      + `Current Profile: ${JSON.stringify(current_profile)}\n\n`
+      + `New Code:\n${code}`
+    : `Analyze the coding style and create initial profile from:\n${code}`;
+
   try {
     const json = await req.json()
     const { code } = BodySchema.parse(json)
