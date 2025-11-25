@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState, useRef } from 'react'
 // 1. (수정) useRouter 제거
 import { useSearchParams, useParams /*, useRouter*/ } from 'next/navigation'
 // 2. (수정) '@/' -> '../' 상대 경로로 수정
-import { addXP } from 'utils/progress'
+import { addXP , getProgress as getProgressRec, type StepScores} from 'utils/progress'
 
 type StepKey = 'understand' | 'decompose' | 'pattern' | 'abstract' | 'pseudocode'
 type Difficulty = 'easy' | 'medium' | 'applied'
@@ -55,6 +55,9 @@ export default function QuizPage() {
   // 결과 관리 상태
   const [results, setResults] = useState<QuizResultLog[]>([])
   const [showResult, setShowResult] = useState(false)
+
+  // ✅ 5. (추가) 단계별 점수 상태
+  const [stepScores, setStepScores] = useState<StepScores | null>(null)
 
   const xpSavedRef = useRef(false)
 
@@ -125,6 +128,11 @@ export default function QuizPage() {
 
       if (totalXp > 0) {
         addXP(totalXp)
+      }
+      // ✅ 6. (추가) localStorage에서 단계별 점수 로드
+      const p = getProgressRec(params.problemId)
+      if (p?.scores) {
+        setStepScores(p.scores)
       }
       xpSavedRef.current = true
     }
@@ -243,6 +251,29 @@ export default function QuizPage() {
               </div>
             </div>
           </div>
+
+          {/* ✅ 7. (추가) 단계별 성취도 (점수) 표시 */}
+          {stepScores && (
+            <div className="mb-8 text-left bg-slate-50 rounded-xl p-5 border border-slate-200">
+              <h3 className="text-sm font-bold text-slate-700 mb-3">단계별 성취도</h3>
+              <div className="grid grid-cols-5 gap-2 text-center">
+                {(Object.keys(STEP_LABEL) as StepKey[]).map((key) => (
+                  <div key={key} className="flex flex-col gap-1">
+                    <span className="text-xs text-slate-500">{STEP_LABEL[key]}</span>
+                    <div className="h-1.5 w-full bg-slate-200 rounded-full overflow-hidden">
+                      <div 
+                        className="h-full bg-[#146E7A]" 
+                        style={{ width: `${stepScores[key] || 0}%` }} 
+                      />
+                    </div>
+                    <span className="text-xs font-semibold text-slate-700">
+                      {stepScores[key] || 0}점
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
 
           <button
             // 5. ✅ (수정) router.push -> window.location.href
