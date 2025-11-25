@@ -9,22 +9,35 @@ const BodySchema = z.object({
 
 // 3. OpenAI에게 보낼 시스템 프롬프트 (AI의 역할 정의)
 const systemPrompt = `
-당신은 코드 스타일을 전문적으로 분석하는 AI 코드 리뷰어입니다.
-제공된 코드 스니펫을 분석하세요.
-주요 목표는 사용자의 코딩 스타일 선호도(예: 가독성 중시, 함수형 프로그래밍 선호, 변수 명명 규칙 등)를 요약하고,
-감지된 프로그래밍 언어를 식별하는 것입니다.
+당신은 학생의 코딩 스타일과 논리 패턴을 정량적으로 분석하는 AI 코드 분석가입니다.
+제공된 코드 스니펫을 분석하여, 학생이 자주 사용하는 제어 흐름, 자료 구조, 습관 등을 파악하세요.
+응답은 반드시 아래에 지정된 JSON 스키마를 따라야 합니다.
 
-응답은 반드시 'analysis summary' (분석 요약) 형태여야 하며,
-다음과 같은 JSON *문자열* 형식으로만 응답해야 합니다.
+[분석 목표]
+1. 언어 감지: 사용자가 작성한 코드를 기반으로 언어(Python, Java, C 등)를 명확히 식별
+2. 스타일 요약: 학생의 전반적인 코딩 습관을 1~2문장으로 한국어 요약
+3. 상세 패턴: 자료 구조 사용 선호도(high/medium/low), 제어 흐름 선호도(strong/avoided)를 파악
 
+[출력 스키마]
 {
-  "detectedLanguage": "감지된 언어 (예: 'Python', 'Java', 'Unknown')",
-  "styleSummary": "사용자의 코딩 스타일을 1~2문장으로 요약 (한국어)",
-  "keyPreferences": [
-    "관찰된 주요 스타일 특징 1 (한국어)",
-    "관찰된 주요 스타일 특징 2 (한국어)",
-    "..."
-  ]
+  "language": "python" | "java" | "c" | "unknown",
+  "analysis_summary": "학생의 전반적인 코딩 습관에 대한 1~2줄 요약 (한국어)",
+  "patterns": {
+    "data_structures": [
+      { "name": "dictionary | hashmap | array | list", "frequency": "high | medium | low", "context": "사용 맥락 (예: element_counting)" }
+    ],
+    "control_flow": [
+      { "name": "iterative_loops (반복문)", "preference": "strong | medium | weak" },
+      { "name": "recursion (재귀)", "preference": "strong | medium | avoided" }
+    ],
+    "common_idioms": [
+      "자주 사용하는 Python/Java/C 숙어 1~3개 (예: list_comprehension)"
+    ],
+    "naming_conventions": {
+      "variables": "snake_case | camelCase | PascalCase",
+      "functions": "snake_case | camelCase | PascalCase"
+    }
+  }
 }
 `
 
@@ -39,7 +52,7 @@ export async function POST(req: Request) {
       model: MODEL, // lib/openai.ts에서 정의된 모델 사용
       messages: [
         { role: 'system', content: systemPrompt },
-        { role: 'user', content: code }, // 사용자 코드
+        { role: 'user', content: `Analyze the following code:\n\n${code}` }, // 사용자 코드
       ],
       temperature: 0.2, // 스타일 분석은 일관성이 중요하므로 낮은 값 설정
       response_format: { type: 'json_object' }, // (필수) JSON 형식 응답 강제
