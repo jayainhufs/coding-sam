@@ -9,35 +9,35 @@ const levels = [
   {
     id: 'beginner',
     title: '입문 (Beginner)',
-    desc: '프로그래밍이 처음이거나, 아직 익숙하지 않아요.',
+    desc: '문법 기초부터 시작해요. 코드가 낯설어요.',
   },
   {
     id: 'intermediate',
     title: '중급 (Intermediate)',
-    desc: '기본 문법은 알지만, 알고리즘 풀이가 어려워요.',
+    desc: '기본기는 있지만, 문제 해결 전략이 부족해요.',
   },
   {
     id: 'advanced',
     title: '고급 (Advanced)',
-    desc: '다양한 문제를 풀어봤고, 더 효율적인 코드를 원해요.',
+    desc: '다양한 문제를 풀었고, 코딩 스타일/최적화에 관심이 많아요',
   },
 ]
 
 const goals = [
   {
     id: 'algorithm',
-    title: '알고리즘 사고력',
-    desc: '문제 해결 능력과 논리적 사고를 기르고 싶어요.',
+    title: '논리력 및 문제 해결',
+    desc: '복잡한 문제를 체계적으로 분석하고 해결하는 논리 흐름을 키우고 싶어요.',
   },
   {
     id: 'style',
-    title: '코드 스타일 / 리팩토링',
-    desc: '더 깨끗하고 효율적인 코드를 작성하고 싶어요.',
+    title: '가독성 및 코드 구조화',
+    desc: '클린 코드 원칙을 적용하고, 함수/변수 구조를 명확하게 만들고 싶어요.',
   },
   {
     id: 'system',
-    title: 'CS 기본 개념',
-    desc: '자료구조, CS 기본 지식을 탄탄히 하고 싶어요.',
+    title: '시스템 효율 및 최적화',
+    desc: '시간/공간 복잡도를 이해하고, 코드를 빠르고 효율적으로 만들고 싶어요.',
   },
 ]
 
@@ -94,7 +94,7 @@ export default function Onboarding() {
             {user ? `${user}님, 환영합니다!` : '환영합니다!'}
           </h1>
           <p className="mt-2 text-base text-gray-600">
-            딱 맞는 학습 추천을 위해 2가지만 알려주세요.
+            AI 조교가 당신에게 딱 맞는 학습 경로를 찾아 드려요.
           </p>
         </div>
 
@@ -104,7 +104,7 @@ export default function Onboarding() {
             {/* 1. 실력 수준 */}
             <fieldset className="grid gap-3">
               <legend className="text-lg font-semibold text-gray-900 mb-2">
-                1. 현재 실력 수준이 어떠신가요?
+                1. 당신의 코딩 경험 단계는?
               </legend>
               <div className="grid gap-3">
                 {levels.map((item) => (

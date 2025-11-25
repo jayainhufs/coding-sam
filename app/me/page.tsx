@@ -9,15 +9,15 @@ import { useAuth, USER_KEY, PREF_KEY } from '@/lib/AuthContext'
 
 // --- 표시용 텍스트 매핑 (기존 유지) ---
 const LEVEL_MAP: Record<string, string> = {
-  beginner: '입문',
-  intermediate: '중급',
-  advanced: '고급',
+  beginner: '입문 (Beginner)',
+  intermediate: '중급 (Intermediate)',
+  advanced: '고급 (Advanced)',
 }
 
 const GOAL_MAP: Record<string, string> = {
-  algorithm: '알고리즘 사고',
-  style: '코드 스타일/리팩토링',
-  system: '시스템/CS 개념',
+  algorithm: '논리력 및 문제 해결',
+  style: '가독성 및 코드 구조화',
+  system: '시스템 효율 및 최적화',
 }
 // --- 끝 ---
 
