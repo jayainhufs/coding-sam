@@ -42,10 +42,10 @@ export default function RecommendedToday({
       : 'bg-gray-100 text-gray-700'
 
   const reasons = [
-    '연속 학습을 시작하기 좋도록 짧은 풀이 동선이에요.',
-    `현재 XP ${xp} / 스트릭 ${streak}일 — 이 문제로 안정적으로 XP를 쌓을 수 있어요.`,
+    `🔥 현재 ${streak}일 연속 학습 중! 문제를 풀어 연속학습을 이어가세요!`,
+    `💎 이 문제를 해결하고 ${100 - xp%100}XP를 획득하여 레벨을 올려보세요!`,
     problem.tags?.length
-      ? `최근 학습한 ${problem.tags.slice(0, 3).map((t) => `#${t}`).join(' ')} 와(과) 연결됩니다.`
+      ? `🧠 당신이 관심 있을 만한 ${problem.tags.slice(0, 3).map((t) => `#${t}`).join(' ')} 유형과 연결됩니다.`
       : undefined,
   ].filter(Boolean) as string[]
 
