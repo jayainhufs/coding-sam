@@ -21,7 +21,7 @@ const systemPrompt = `
 [출력 스키마]
 {
   "language": "python" | "java" | "c" | "unknown",
-  "analysis_summary": "학생의 전반적인 코딩 습관에 대한 1~2줄 요약 (한국어)",
+  "styleSummary": "학생의 전반적인 코딩 습관에 대한 1~2줄 요약 (한국어)",
   "patterns": {
     "data_structures": [
       { "name": "dictionary | hashmap | array | list", "frequency": "high | medium | low", "context": "사용 맥락 (예: element_counting)" }
