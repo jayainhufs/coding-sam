@@ -12,7 +12,7 @@ export default function EditorRunPanel({
   setCodeByLang,
   samples,
   onValidationChange,
-  onPassCountChange, // ✅ 1. (추가) 통과 개수 전달 콜백
+  onPassCountChange,
 }: {
   language: LanguageKey
   setLanguage: (l: LanguageKey) => void
@@ -20,22 +20,16 @@ export default function EditorRunPanel({
   setCodeByLang: (next: Record<LanguageKey, string>) => void
   samples?: { input: string; output: string }[]
   onValidationChange: (isValid: boolean) => void
-  onPassCountChange?: (count: number) => void // ✅ 1. (추가) 타입 정의
+  onPassCountChange?: (count: number) => void
 }) {
   const { stdout, setStdout, run, runAllSamples, running } = useRunner(language)
 
   useEffect(() => {
-    // ✅ 2. (수정) stdout 분석하여 통과 개수 계산
-    // stdout 형식: "✅ 모든 샘플 통과! (3/3)" 또는 "❌ 1/3개 샘플 통과"
     let passCount = 0
     if (stdout.includes('✅ 통과')) {
-      // "✅ 통과" 문구의 개수를 세거나, 요약 줄을 파싱
       const matches = stdout.match(/✅ 통과/g)
       passCount = matches ? matches.length : 0
     }
-    
-    // (더 정확한 방법: useRunner가 passCount를 반환하게 하는 것이 좋지만,
-    //  여기서는 stdout 파싱으로 간단히 구현)
     
     if (stdout.startsWith('✅ 모든 샘플 통과!')) {
       onValidationChange(true)
@@ -43,7 +37,6 @@ export default function EditorRunPanel({
       onValidationChange(false)
     }
 
-    // ✅ 3. (추가) 부모에게 통과 개수 전달
     if (onPassCountChange) {
       onPassCountChange(passCount)
     }
@@ -61,9 +54,38 @@ export default function EditorRunPanel({
     run(codeByLang[language] ?? '', s.input, s.output)
   }
 
+  // ✅ 1. 첫 번째 샘플 가져오기
+  const firstSample = samples && samples.length > 0 ? samples[0] : null
+
   return (
     <>
-      {/* ... (UI 코드는 기존과 동일) ... */}
+      {/* ✅ 2. (추가) 에디터 상단에 첫 번째 샘플 데이터 표시 */}
+      {firstSample && (
+        <div className="mb-4 rounded-xl bg-slate-50 border border-slate-200 p-4 text-sm">
+          <div className="flex items-center gap-2 mb-2">
+            <span className="font-bold text-slate-700">👀 입출력 예시 (샘플 1)</span>
+            <span className="text-xs text-slate-400">코드를 작성할 때 참고하세요.</span>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {/* 입력 표시 */}
+            <div>
+              <span className="text-xs text-slate-500 block mb-1 font-semibold">Input</span>
+              <pre className="bg-white border border-slate-200 rounded-lg p-3 text-slate-800 whitespace-pre-wrap font-mono text-xs leading-relaxed max-h-32 overflow-auto shadow-sm">
+                {firstSample.input}
+              </pre>
+            </div>
+            {/* 출력 표시 */}
+            <div>
+              <span className="text-xs text-slate-500 block mb-1 font-semibold">Output</span>
+              <pre className="bg-white border border-slate-200 rounded-lg p-3 text-slate-800 whitespace-pre-wrap font-mono text-xs leading-relaxed max-h-32 overflow-auto shadow-sm">
+                {firstSample.output}
+              </pre>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* --- 기존 언어 선택 버튼 --- */}
       <div className="flex items-center gap-2 mb-2">
         {(['python', 'c', 'java'] as LanguageKey[]).map((l) => (
           <button
@@ -92,6 +114,7 @@ export default function EditorRunPanel({
         onChange={updateCode}
       />
 
+      {/* ... (이하 실행 결과창 및 버튼들은 기존 코드와 동일) ... */}
       <pre
         className={`w-full h-auto max-h-48 overflow-auto rounded-xl border p-3 mt-4 text-sm whitespace-pre-wrap break-words ${
           stdout.startsWith('✅ 모든 샘플 통과!')
