@@ -7,7 +7,14 @@ import type { StepKey, AiMode } from '@/hooks/useAiTutor'
 type Props = {
   step: StepKey
   stepLabel: string
-  problem: { id: string; title: string; description?: string }
+  problem: {
+    id: string
+    title: string
+    description?: string
+    difficulty?: string
+    tags?: string[]
+    samples?: { input: string; output: string }[]
+  }
   buildPrompt: (st: StepKey, mode: AiMode) => string
   hasInputForStep: (st: StepKey) => boolean // "의사코드" 입력 여부
   hasCode?: boolean // ✅ 2. (추가) LearnWizard로부터 '코드' 입력 여부를 받음

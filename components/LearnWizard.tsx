@@ -572,11 +572,7 @@ ${userText}`
       <AiTutorPanel
         step={step}
         stepLabel={STEP_LABEL[step]}
-        problem={{
-          id: problem.id,
-          title: problem.title,
-          description: problem.description,
-        }}
+        problem={problem}
         buildPrompt={buildPrompt}
         hasInputForStep={hasInputForStep} // "의사코드" 입력 여부
         hasCode={hasCodeInEditor} // "실제 코드" 입력 여부
