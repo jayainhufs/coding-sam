@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState, useRef } from 'react'
 // 1. (수정) useRouter 제거
 import { useSearchParams, useParams /*, useRouter*/ } from 'next/navigation'
 // 2. (수정) '@/' -> '../' 상대 경로로 수정
-import { addXP , getProgress as getProgressRec, type StepScores} from 'utils/progress'
+import { addXP , getProgress as getProgressRec, type StepScores, scoreToGrade} from 'utils/progress'
 
 type StepKey = 'understand' | 'decompose' | 'pattern' | 'abstract' | 'pseudocode'
 type Difficulty = 'easy' | 'medium' | 'applied'
@@ -266,8 +266,9 @@ export default function QuizPage() {
                         style={{ width: `${stepScores[key] || 0}%` }} 
                       />
                     </div>
+                    {/* ✅ (수정) 점수(숫자) 대신 등급(알파벳) 표시 */}
                     <span className="text-xs font-semibold text-slate-700">
-                      {stepScores[key] || 0}점
+                      {scoreToGrade(stepScores[key] || 0)}
                     </span>
                   </div>
                 ))}
