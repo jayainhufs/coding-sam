@@ -160,7 +160,7 @@ export default function StyleOnboardingPage() {
         {/* 헤더 */}
         <div className="text-center mb-6">
           <h1 className="text-3xl font-extrabold tracking-tight text-[#002D56]">
-            코딩 스타일 분석 (3/3)
+            코딩 스타일 분석
           </h1>
           <p className="mt-2 text-base text-gray-600">
             AI가 사용자의 코드를 분석하여 맞춤형 피드백에 활용합니다.
