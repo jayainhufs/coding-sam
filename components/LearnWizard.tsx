@@ -290,24 +290,52 @@ export default function LearnWizard({ problem }: { problem: Problem }) {
       setAvgScore(avg)
       goToQuiz(problem.id, 'pseudocode', pseudocode || '')
     }
-    // ✅ Add style analysis API call after successful evaluation
-    const styleRes = await fetch('/api/ai/analyze-style', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        code: codeByLang[language],
-        current_profile: studentProfile,
-      }),
-    })
-    const styleData = await styleRes.json();
-    
-    if (styleData?.ok && styleData.profile) {
-      setStudentProfile(styleData.profile);
-      // Update localStorage
-      const userName = localStorage.getItem(USER_KEY);
-      if (userName) {
-        const prefKey = PREF_KEY(userName);
-        localStorage.setItem(prefKey, JSON.stringify(styleData.profile));
+    // ✅ 스타일 프로필 업데이트 로직 (제출 승인 시)
+    if (forcedVerified) {
+      const currentCode = codeByLang[language] ?? ''
+      const userName = localStorage.getItem(USER_KEY)
+
+      if (currentCode.trim() && userName) {
+        try {
+          const prefKey = PREF_KEY(userName)
+          const currentPrefJSON = localStorage.getItem(prefKey)
+          const currentPref = currentPrefJSON ? JSON.parse(currentPrefJSON) : {}
+          
+          const styleUpdateRes = await fetch('/api/ai/analyze-style', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              code: currentCode,
+              language: language,
+              current_profile: studentProfile, 
+            }),
+          })
+          const styleUpdateData = await styleUpdateRes.json()
+
+          if (
+            styleUpdateRes.ok &&
+            styleUpdateData?.ok &&
+            styleUpdateData.profile
+          ) {
+            const updatedStyleProfile = styleUpdateData.profile
+            
+            const newPref = {
+              ...currentPref,
+              codeStyle: updatedStyleProfile
+            }
+            
+            localStorage.setItem(prefKey, JSON.stringify(newPref))
+            setStudentProfile(newPref)
+            console.log('✅ Style profile updated successfully:', updatedStyleProfile)
+          } else {
+            console.error(
+              '❌ Failed to update style profile:',
+              styleUpdateData,
+            )
+          }
+        } catch (e) {
+          console.error('❌ Network error during style update:', e)
+        }
       }
     }
   }  
