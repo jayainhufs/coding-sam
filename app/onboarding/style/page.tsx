@@ -4,7 +4,7 @@ import { useState } from 'react'
 import { useAuth, USER_KEY, PREF_KEY } from '@/lib/AuthContext'
 import CodeEditor, { LanguageKey } from '@/components/CodeEditor'
 
-// ✅ 1. 예시 문제 (1-100까지 합)
+// 1. 예시 문제 (1-100까지 합)
 const sampleProblem = {
   title: '예시 문제: 1부터 100까지의 합',
   description:
@@ -30,7 +30,7 @@ export default function StyleOnboardingPage() {
   const [runLoading, setRunLoading] = useState(false)
   const [runResult, setRunResult] = useState<string | null>(null) // 실행 결과 (STDOUT)
 
-  const isSampleSolved = runResult?.startsWith('✅') ?? false
+  const isSampleSolved = runResult?.startsWith('정답입니다!') ?? false
   const isPastedCodeEmpty = !pastedCode.trim()
 
   /**
@@ -72,7 +72,7 @@ export default function StyleOnboardingPage() {
         localStorage.setItem(prefKey, JSON.stringify(updatedPref))
       }
 
-      // 4. ✅ router.push -> window.location.href로 변경
+      // 4. router.push -> window.location.href로 변경
       window.location.href = '/home'
     } catch (e: any) {
       console.error('스타일 분석 오류:', e)
@@ -100,7 +100,7 @@ export default function StyleOnboardingPage() {
       const j = await res.json()
 
       if (!j.ok) {
-        setRunResult(`❌ 실행 오류:\n${j.error}`)
+        setRunResult(`실행 오류:\n${j.error}`)
       } else {
         const output = (
           j.result?.run?.output ??
@@ -109,10 +109,10 @@ export default function StyleOnboardingPage() {
         ).trim()
 
         if (output === sampleProblem.expectedOutput) {
-          setRunResult(`✅ 정답입니다!\n실행 결과: ${output}`)
+          setRunResult(`정답입니다!\n실행 결과: ${output}`)
         } else {
           setRunResult(
-            `❌ 오답입니다.\n실행 결과: ${output}`,
+            `오답입니다.\n실행 결과: ${output}`,
           )
         }
       }
@@ -127,7 +127,7 @@ export default function StyleOnboardingPage() {
    * (기존 함수) 이 단계를 건너뛰고 홈으로 이동
    */
   const skip = () => {
-    // 5. ✅ router.push -> window.location.href로 변경
+    // 5. router.push -> window.location.href로 변경
     window.location.href = '/home'
   }
 
@@ -136,17 +136,17 @@ export default function StyleOnboardingPage() {
   const activeTab = `${baseTab} bg-white border-b-2 border-white`
   const inactiveTab = `${baseTab} bg-transparent text-gray-600 hover:text-gray-900`
 
-  // ✅ 7. (수정) 버튼 비활성화 로직
+  // (수정) 버튼 비활성화 로직
   const isAnalyzeDisabled =
     loading ||
     runLoading ||
     (tab === 'sample' && !isSampleSolved) ||
     (tab === 'paste' && isPastedCodeEmpty)
 
-  // ✅ 8. (수정) 툴팁 메시지 로직
+  // (수정) 툴팁 메시지 로직
   const getAnalyzeButtonTitle = () => {
     if (tab === 'sample' && !isSampleSolved) {
-      return '"코드 실행 및 정답 확인"을 눌러 정답(✅)을 먼저 받아야 합니다.'
+      return '"코드 실행 및 정답 확인"을 눌러 정답을 먼저 받아야 합니다.'
     }
     if (tab === 'paste' && isPastedCodeEmpty) {
       return '분석할 코드를 "내 코드 붙여넣기" 탭에 입력해주세요.'
@@ -193,7 +193,7 @@ export default function StyleOnboardingPage() {
                 {sampleProblem.description}
               </p>
 
-              {/* ✅ (추가) 기대하는 출력값 명시 */}
+              {/* (추가) 기대하는 출력값 명시 */}
               <div className="grid grid-cols-[auto_1fr] items-center gap-x-3 gap-y-1 rounded-lg border border-slate-200 bg-slate-50/80 p-3">
                 <span className="text-xs font-semibold text-slate-600">
                   출력
@@ -242,9 +242,9 @@ export default function StyleOnboardingPage() {
               {runResult && (
                 <pre
                   className={`w-full h-auto rounded-xl border p-3 text-sm whitespace-pre-wrap ${
-                    runResult.startsWith('✅')
+                    runResult.startsWith('정답입니다!')
                       ? 'border-green-300 bg-green-50 text-green-800'
-                      : runResult.startsWith('❌')
+                      : runResult.startsWith('오답입니다.') || runResult.startsWith('실행 오류:')
                       ? 'border-red-300 bg-red-50 text-red-800'
                       : 'border-slate-200 bg-slate-50'
                   }`}

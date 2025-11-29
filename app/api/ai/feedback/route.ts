@@ -240,7 +240,7 @@ export async function POST(req: Request) {
 
     let text = completion.choices[0]?.message?.content?.trim() ?? '응답이 비어있습니다.'
 
-    // ✅ 힌트 모드: 형식 강제 정규화
+    // 힌트 모드: 형식 강제 정규화
     if (mode === 'hint') {
       const { missing } = analyzeGaps(step, userInput)
       text = normalizeHintResponse(text, step, missing, problem)

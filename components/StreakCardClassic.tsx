@@ -95,7 +95,7 @@ export default function StreakCardClassic({ streakDays }: { streakDays: number }
         </div>
       </div>
 
-      {/* 🔥 미니 7칸 */}
+      {/* 미니 7칸 */}
       <div className="mt-3 flex items-center justify-between">
         <StreakMini n={streakDays % 7 || 7} />
         <span className="text-xs text-slate-500">7일 주기 미니표시</span>

@@ -22,7 +22,7 @@ export default function RecommendedToday({
   streak: number
   progress?: number
   solved?: boolean
-  scoreToGrade: (score: number) => string // ✅ 1. (추가) prop 타입 정의
+  scoreToGrade: (score: number) => string // prop 타입 정의
 }) {
   if (!problem) {
     return (
@@ -42,10 +42,10 @@ export default function RecommendedToday({
       : 'bg-gray-100 text-gray-700'
 
   const reasons = [
-    `🔥 현재 ${streak}일 연속 학습 중! 문제를 풀어 연속학습을 이어가세요!`,
-    `💎 이 문제를 해결하고 ${100 - xp%100}XP를 획득하여 레벨을 올려보세요!`,
+    `현재 ${streak}일 연속 학습 중! 문제를 풀어 연속학습을 이어가세요!`,
+    `이 문제를 해결하고 ${100 - xp%100}XP를 획득하여 레벨을 올려보세요!`,
     problem.tags?.length
-      ? `🧠 당신이 관심 있을 만한 ${problem.tags.slice(0, 3).map((t) => `#${t}`).join(' ')} 유형과 연결됩니다.`
+      ? `당신이 관심 있을 만한 ${problem.tags.slice(0, 3).map((t) => `#${t}`).join(' ')} 유형과 연결됩니다.`
       : undefined,
   ].filter(Boolean) as string[]
 
@@ -58,7 +58,7 @@ export default function RecommendedToday({
 
           {/* 학습률/풀었음 배지 */}
           <div className="mt-2 flex flex-wrap gap-2">
-          {/* ✅ 2. (수정) "학습률" -> "학습 등급" */}
+          {/* "학습률" -> "학습 등급" */}
           {typeof progress === 'number' && (
             <span className="px-2.5 py-1 rounded-full text-xs font-semibold bg-green-100 text-green-700">
               학습 등급 {scoreToGrade(progress)}
@@ -76,7 +76,6 @@ export default function RecommendedToday({
 
       <div className="mt-4 rounded-xl border border-gray-200 bg-white/70 p-4">
         <div className="flex items-center gap-2 mb-2">
-          <span>✨</span>
           <span className="font-semibold">추천 이유</span>
         </div>
         <ul className="list-disc pl-5 text-sm text-gray-700 space-y-1">

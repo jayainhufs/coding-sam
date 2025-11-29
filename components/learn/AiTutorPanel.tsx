@@ -17,7 +17,7 @@ type Props = {
   }
   buildPrompt: (st: StepKey, mode: AiMode) => string
   hasInputForStep: (st: StepKey) => boolean // "의사코드" 입력 여부
-  hasCode?: boolean // ✅ 2. (추가) LearnWizard로부터 '코드' 입력 여부를 받음
+  hasCode?: boolean // LearnWizard로부터 '코드' 입력 여부를 받음
 }
 
 export default function AiTutorPanel({
@@ -26,7 +26,7 @@ export default function AiTutorPanel({
   problem,
   buildPrompt,
   hasInputForStep,
-  hasCode, // ✅ 2. (추가)
+  hasCode, // (추가)
 }: Props) {
   const [mode, setMode] = useState<AiMode | undefined>(undefined)
   const [loading, setLoading] = useState(false)
@@ -37,11 +37,11 @@ export default function AiTutorPanel({
   // "힌트" 버튼: 항상 실행 가능
   // const canRunHint = true
 
-  // ✅ 3. (수정) "코드 제안" 버튼: 5단계('pseudocode')에서만, 그리고 "실제 코드"가 있을 때만 활성화
+  // "코드 제안" 버튼: 5단계('pseudocode')에서만, 그리고 "실제 코드"가 있을 때만 활성화
   const canRunCodeSuggest = step === 'pseudocode' && (hasCode ?? false)
 
   async function run(nextMode: AiMode | undefined) {
-    // ✅ 4. (수정) 버튼별 비활성화 로직 방어
+    // 버튼별 비활성화 로직 방어
     // (수정) '요청' 버튼에 대한 방어 로직
     if (nextMode !== 'hint' && nextMode !== 'code-suggest' && !canRunRequest) {
       return
@@ -60,7 +60,7 @@ export default function AiTutorPanel({
     try {
       const prompt = buildPrompt(step, nextMode as AiMode)
 
-      // ✅ 힌트 모드: promptOverride를 보내지 않고, userInput만 최소 토큰으로 전달
+      // 힌트 모드: promptOverride를 보내지 않고, userInput만 최소 토큰으로 전달
       //    (서버가 힌트 전용 프롬프트를 강제 생성하도록)
       const body: any = {
         step,
@@ -142,15 +142,15 @@ export default function AiTutorPanel({
             role="tab"
             aria-selected={mode === 'code-suggest'}
             onClick={() => run('code-suggest')} // 코드 제안
-            disabled={!canRunCodeSuggest} // ✅ 5. (수정)
+            disabled={!canRunCodeSuggest} // (수정)
             className={`px-3.5 py-1.5 text-sm whitespace-nowrap transition ${
               mode === 'code-suggest'
                 ? 'bg-[#0f2a4a] text-white'
                 : 'bg-white hover:bg-gray-50 text-slate-700'
             } ${
               !canRunCodeSuggest ? 'opacity-50 cursor-not-allowed' : ''
-            }`} // ✅ 5. (수정)
-            // ✅ 6. (수정) 툴팁 메시지 변경
+            }`} // (수정)
+            // 툴팁 메시지 변경
             title={
               step !== 'pseudocode'
                 ? '코드 제안은 5단계(구현)에서만 사용할 수 있습니다.'

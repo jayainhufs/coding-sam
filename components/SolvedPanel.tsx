@@ -98,7 +98,7 @@ export default function SolvedPanel() {
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-2">
                     <span className="truncate text-sm font-medium text-slate-900 group-hover:underline">{it.id}</span>
-                    {/* ✅ 3. (수정) "학습률 %" -> "학습 등급" */}
+                    {/* "학습률 %" -> "학습 등급" */}
                     <span className="rounded-full bg-[#002D56]/90 px-1.5 py-0.5 text-[10px] font-semibold text-white">
                       학습 등급 {scoreToGrade(it.rate)}
                     </span>

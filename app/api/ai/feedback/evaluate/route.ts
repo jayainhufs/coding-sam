@@ -33,7 +33,7 @@ const BodySchema = z.object({
   summary: SummarySchema,
   recent: z.array(RecentItemSchema).optional(),
 
-  // ✅ 추가: 패널티 계산을 위한 카운터(이번 제출 시점 누적)
+  // 추가: 패널티 계산을 위한 카운터(이번 제출 시점 누적)
   aiRequestCount: z.number().int().nonnegative().default(0), // AI 요청 총합(이번 포함)
   hintCount: z.number().int().nonnegative().default(0),      // 힌트 사용 총합(요청에 포함이면 0으로)
   solvedThreshold: z.number().min(1).max(100).default(80),   // (참고용) 정답 처리 기준
@@ -158,12 +158,12 @@ export async function POST(req: Request) {
     const parsed = BodySchema.parse(await req.json())
     const { summary, aiRequestCount, hintCount, solvedThreshold } = parsed
 
-    // ✅ 패널티 전 평균(avgRaw) 계산
+    // 패널티 전 평균(avgRaw) 계산
     const avgRaw = Math.round(
       average(Object.values(summary.avg).map((v) => (typeof v === 'number' ? v : 0)))
     )
 
-    // ✅ 패널티 계산 및 적용 평균(finalAvg)
+    // 패널티 계산 및 적용 평균(finalAvg)
     const penaltyUnits = computePenaltyUnits(aiRequestCount, hintCount)
     const finalAvg = clamp(avgRaw - penaltyUnits)
 
@@ -189,7 +189,7 @@ export async function POST(req: Request) {
       return NextResponse.json({
         ok: true,
         text,
-        // ✅ 점수 메타(프런트에서 표시/집계에 사용)
+        // 점수 메타(프런트에서 표시/집계에 사용)
         avgRaw,
         finalAvg,
         penalty: {

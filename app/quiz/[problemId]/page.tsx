@@ -56,7 +56,7 @@ export default function QuizPage() {
   const [results, setResults] = useState<QuizResultLog[]>([])
   const [showResult, setShowResult] = useState(false)
 
-  // ✅ 5. (추가) 단계별 점수 상태
+  // 단계별 점수 상태
   const [stepScores, setStepScores] = useState<StepScores | null>(null)
 
   const xpSavedRef = useRef(false)
@@ -76,7 +76,7 @@ export default function QuizPage() {
     pseudocode: '의사코드',
   }
 
-  // ✅ 4. (복원) 누락되었던 DIFF_STYLE 상수
+  // (복원) 누락되었던 DIFF_STYLE 상수
   const DIFF_STYLE: Record<Difficulty, string> = {
     easy: 'bg-green-100 text-green-700',
     medium: 'bg-yellow-100 text-yellow-700',
@@ -129,7 +129,7 @@ export default function QuizPage() {
       if (totalXp > 0) {
         addXP(totalXp)
       }
-      // ✅ 6. (추가) localStorage에서 단계별 점수 로드
+      // localStorage에서 단계별 점수 로드
       const p = getProgressRec(params.problemId)
       if (p?.scores) {
         setStepScores(p.scores)
@@ -179,7 +179,7 @@ export default function QuizPage() {
       current.answer.trim().toLowerCase() === userAns.trim().toLowerCase()
 
     setFeedback(
-      correct ? '정답입니다. 잘했어요! 🎉' : `오답입니다. 정답: ${current.answer}`,
+      correct ? '정답입니다. 잘했어요!' : `오답입니다. 정답: ${current.answer}`,
     )
 
     setResults((prev) => [
@@ -220,7 +220,7 @@ export default function QuizPage() {
     return (
       <div className="mx-auto max-w-3xl p-6">
         <div className="rounded-2xl border border-gray-200 bg-white p-8 shadow-sm text-center mb-6">
-          <h2 className="text-2xl font-bold mb-2">퀴즈 완료! 🎉</h2>
+          <h2 className="text-2xl font-bold mb-2">퀴즈 완료!</h2>
           <p className="text-gray-600 mb-6">수고하셨습니다. 결과를 확인해보세요.</p>
 
           <div className="flex flex-wrap justify-center items-center gap-4 mb-6">
@@ -252,7 +252,7 @@ export default function QuizPage() {
             </div>
           </div>
 
-          {/* ✅ 7. (추가) 단계별 성취도 (점수) 표시 */}
+          {/* 단계별 성취도 (점수) 표시 */}
           {stepScores && (
             <div className="mb-8 text-left bg-slate-50 rounded-xl p-5 border border-slate-200">
               <h3 className="text-sm font-bold text-slate-700 mb-3">단계별 성취도</h3>
@@ -266,7 +266,7 @@ export default function QuizPage() {
                         style={{ width: `${stepScores[key] || 0}%` }} 
                       />
                     </div>
-                    {/* ✅ (수정) 점수(숫자) 대신 등급(알파벳) 표시 */}
+                    {/* (수정) 점수(숫자) 대신 등급(알파벳) 표시 */}
                     <span className="text-xs font-semibold text-slate-700">
                       {scoreToGrade(stepScores[key] || 0)}
                     </span>
@@ -277,7 +277,7 @@ export default function QuizPage() {
           )}
 
           <button
-            // 5. ✅ (수정) router.push -> window.location.href
+            // 5. (수정) router.push -> window.location.href
             onClick={() => (window.location.href = '/home')}
             className="px-6 py-3 bg-[#002D56] text-white rounded-xl font-medium hover:bg-[#002D56]/90 transition"
           >
@@ -326,7 +326,7 @@ export default function QuizPage() {
                     )}
                     {res.explanation && (
                       <div className="mt-2 pt-2 border-t border-gray-200/50 text-gray-600 text-xs leading-relaxed">
-                        💡 {res.explanation}
+                        {res.explanation}
                       </div>
                     )}
                   </div>
@@ -364,7 +364,7 @@ export default function QuizPage() {
       {/* 퀴즈 카드 */}
       <div className="rounded-2xl border border-gray-200/70 bg-white/80 backdrop-blur p-6 ring-1 ring-black/5 shadow-sm">
         <div className="flex items-center gap-2 mb-4">
-          {/* ✅ 6. (수정) DIFF_STYLE 변수 사용 */}
+          {/* (수정) DIFF_STYLE 변수 사용 */}
           <span
             className={`px-2.5 py-0.5 rounded text-xs font-semibold uppercase tracking-wide ${
               DIFF_STYLE[current.difficulty]

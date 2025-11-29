@@ -28,8 +28,8 @@ export function useTemplates(problemId: string) {
 3) 결과 출력 → best`,
         pattern:
 `[후보 2개 + 채택근거]
-- Kadane O(n)/O(1) ✅
-- 모든 구간 탐색 O(n^2) ❌ (시간 초과)
+- Kadane O(n)/O(1) [채택]
+- 모든 구간 탐색 O(n^2) [기각] (시간 초과)
 - 불변식: best는 i까지의 최대합, cur는 i에서 끝나는 최대합`,
         abstractInPh: `I/O(입력)
 - nums: int[]  (예: [-2,1,-3,4,-1,2,1,-5,4])
@@ -57,8 +57,8 @@ print(best)`,
 2) 해시맵 1-pass (need=target-x)
 3) 결과 출력`,
         pattern:
-`- HashMap O(n)/O(n) ✅
-- 정렬+투포인터(인덱스 유지 비용) △`,
+`- HashMap O(n)/O(n) [채택]
+- 정렬+투포인터(인덱스 유지 비용) [보류]`,
         abstractInPh: `nums: int[], target: int`,
         abstractOutPh: `indices: (i,j) with i<j`,
         pseudocode:

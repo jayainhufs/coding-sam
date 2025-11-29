@@ -69,9 +69,9 @@ export default function LearnWizard({ problem }: { problem: Problem }) {
   const [scores, setScores] = useState<StepScores>({})
   const [avgScore, setAvgScore] = useState<number>(0)
   const [isCodeVerified, setIsCodeVerified] = useState(false)
-  // ✅ 4. (추가) 통과한 테스트 케이스 개수 state
+  // 통과한 테스트 케이스 개수 state
   const [passCount, setPassCount] = useState(0)
-  // ✅ 4. (추가) 학생 프로필(스타일)을 저장할 state
+  // 학생 프로필(스타일)을 저장할 state
   const [studentProfile, setStudentProfile] = useState<any>(null)
 
   // 초기 진행 불러오기
@@ -86,7 +86,7 @@ export default function LearnWizard({ problem }: { problem: Problem }) {
     setAvgScore(prevAvg)
   }, [problem.id])
 
-  // ✅ 5. (추가) 마운트 시 학생 프로필(스타일) 로드
+  // 마운트 시 학생 프로필(스타일) 로드
   useEffect(() => {
     try {
       const userName = localStorage.getItem(USER_KEY)
@@ -175,13 +175,13 @@ export default function LearnWizard({ problem }: { problem: Problem }) {
     window.location.href = `/quiz/${problemId}?${qs}`
   }
   async function handleSubmit() {
-    // ✅ 1. (수정) 전체 샘플 미통과 시 사용자 확인 (강제 통과 가능)
+    // (수정) 전체 샘플 미통과 시 사용자 확인 (강제 통과 가능)
     let forcedVerified = isCodeVerified
   
     if (!isCodeVerified) {
       // alert 대신 confirm을 사용하여 선택권 부여
       const proceed = window.confirm(
-        '모든 샘플(✅)을 통과하지 못했습니다. 그래도 제출하시겠습니까?',
+        '모든 샘플을 통과하지 못했습니다. 그래도 제출하시겠습니까?',
       )
       if (!proceed) {
         return // 취소 시 중단
@@ -280,7 +280,7 @@ export default function LearnWizard({ problem }: { problem: Problem }) {
     } catch {
       const attempts = attemptsPrev + 1
       setProgress(problem.id, { scores: s, attempts })
-      // ✅ 3. (수정) 에러 시에도 강제 통과 상태라면 해결 처리
+      // (수정) 에러 시에도 강제 통과 상태라면 해결 처리
       if (forcedVerified) {
         markSolved(problem.id)
       }
@@ -300,9 +300,9 @@ export default function LearnWizard({ problem }: { problem: Problem }) {
     return false
   }
 
-  // ✅ 6. (삭제) 30초 힌트 제안 useEffect (요청에 따라 삭제)
+  // (삭제) 30초 힌트 제안 useEffect (요청에 따라 삭제)
 
-  // ✅ 7. (수정) AI 프롬프트 빌더
+  // (수정) AI 프롬프트 빌더
   const buildPrompt = useMemo(() => {
     // 7a. (수정) 'code-suggest'를 위한 새 LLM 프롬프트 템플릿
     const codeSuggestMimicPrompt = `### 역할(Role)
@@ -402,9 +402,9 @@ ${userText}`
     abstractIn,
     abstractOut,
     pseudocode,
-    studentProfile, // ✅ 8. (추가) 의존성
-    codeByLang, // ✅ 8. (추가) 의존성
-    language, // ✅ 8. (추가) 의존성
+    studentProfile, // (추가) 의존성
+    codeByLang, // (추가) 의존성
+    language, // (추가) 의존성
   ])
 
   const progress = ((stepIdx + 1) / STEP_ORDER.length) * 100
@@ -563,7 +563,7 @@ ${userText}`
               setCodeByLang={setCodeByLang}
               samples={problem.samples}
               onValidationChange={setIsCodeVerified}
-              onPassCountChange={setPassCount} // ✅ 3. (추가) 통과 개수 전달
+              onPassCountChange={setPassCount} // (추가) 통과 개수 전달
             />
           </>
         )}

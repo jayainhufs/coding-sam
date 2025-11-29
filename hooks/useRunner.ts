@@ -7,7 +7,7 @@ export function useRunner(language: LanguageKey) {
   const [stdout, setStdout] = useState('')
   const [running, setRunning] = useState(false)
 
-  // ✅ 2. 단일 케이스 실행 함수 (출력값에 'input' 추가)
+  // 2. 단일 케이스 실행 함수 (출력값에 'input' 추가)
   const run = useCallback(
     async (code: string, input?: string, expectedOutput?: string) => {
       setRunning(true)
@@ -24,11 +24,11 @@ export function useRunner(language: LanguageKey) {
         })
         const j = await res.json()
 
-        // ✅ 3. (추가) 어떤 입력으로 실행했는지 표시
+        // (추가) 어떤 입력으로 실행했는지 표시
         const inputDisplay = `[입력]:\n${input ?? '(없음)'}\n\n`
 
         if (!j.ok) {
-          setStdout(inputDisplay + `❌ 실행 오류:\n${j.error}`)
+          setStdout(inputDisplay + `실행 오류:\n${j.error}`)
         } else {
           const actualOutput = (
             j.result?.run?.output ??
@@ -40,12 +40,12 @@ export function useRunner(language: LanguageKey) {
             const expected = expectedOutput.trim()
             if (actualOutput === expected) {
               setStdout(
-                inputDisplay + `✅ 정답입니다!\n실행 결과: ${actualOutput}`,
+                inputDisplay + `정답입니다!\n실행 결과: ${actualOutput}`,
               )
             } else {
               setStdout(
                 inputDisplay +
-                  `❌ 오답입니다.\n실행 결과: ${actualOutput}\n기대값: ${expected}`,
+                  `오답입니다.\n실행 결과: ${actualOutput}\n기대값: ${expected}`,
               )
             }
           } else {
@@ -61,7 +61,7 @@ export function useRunner(language: LanguageKey) {
     [language],
   )
 
-  // ✅ 4. "전체 샘플 실행" (출력값에 'input' 추가)
+  // 4. "전체 샘플 실행" (출력값에 'input' 추가)
   const runAllSamples = useCallback(
     async (
       code: string,
@@ -79,11 +79,11 @@ export function useRunner(language: LanguageKey) {
       const detailedResults: string[] = []
 
       try {
-        // ❌ Promise.all() 대신 for...of 루프 사용 (API 속도 제한 회피)
+        // Promise.all() 대신 for...of 루프 사용 (API 속도 제한 회피)
         for (let i = 0; i < samples.length; i++) {
           const sample = samples[i]
           const expected = sample.output.trim()
-          // ✅ 5. (추가) 입력값의 첫 줄만 간단히 표시
+          // (추가) 입력값의 첫 줄만 간단히 표시
           const truncatedInput = sample.input.trim().split('\n')[0]
 
           setStdout(
@@ -106,7 +106,7 @@ export function useRunner(language: LanguageKey) {
 
           if (!j.ok) {
             detailedResults.push(
-              `케이스 ${i + 1} (입력: ${truncatedInput}): ❌ 실행 실패 (${
+              `케이스 ${i + 1} (입력: ${truncatedInput}): 실행 실패 (${
                 j.error ?? 'API 오류'
               })`,
             )
@@ -122,13 +122,13 @@ export function useRunner(language: LanguageKey) {
           if (actualOutput === expected) {
             correctCount++
             detailedResults.push(
-              `케이스 ${i + 1} (입력: ${truncatedInput}): ✅ 통과 (결과: ${actualOutput})`,
+              `케이스 ${i + 1} (입력: ${truncatedInput}): 통과 (결과: ${actualOutput})`,
             )
           } else {
             detailedResults.push(
               `케이스 ${
                 i + 1
-              } (입력: ${truncatedInput}): ❌ 오답 (결과: ${actualOutput}, 기대값: ${expected})`,
+              } (입력: ${truncatedInput}): 오답 (결과: ${actualOutput}, 기대값: ${expected})`,
             )
           }
         }
@@ -136,8 +136,8 @@ export function useRunner(language: LanguageKey) {
         // 최종 결과 요약
         const summary =
           correctCount === samples.length
-            ? `✅ 모든 샘플 통과! (${correctCount}/${samples.length})`
-            : `❌ ${correctCount}/${samples.length}개 샘플 통과`
+            ? `모든 샘플 통과! (${correctCount}/${samples.length})`
+            : `${correctCount}/${samples.length}개 샘플 통과`
 
         setStdout(`${summary}\n\n${detailedResults.join('\n')}`)
       } catch (e: any) {

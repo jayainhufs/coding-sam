@@ -26,12 +26,12 @@ export default function EditorRunPanel({
 
   useEffect(() => {
     let passCount = 0
-    if (stdout.includes('✅ 통과')) {
-      const matches = stdout.match(/✅ 통과/g)
+    if (stdout.includes('): 통과')) {
+      const matches = stdout.match(/\): 통과/g)
       passCount = matches ? matches.length : 0
     }
     
-    if (stdout.startsWith('✅ 모든 샘플 통과!')) {
+    if (stdout.startsWith('모든 샘플 통과!')) {
       onValidationChange(true)
     } else {
       onValidationChange(false)
@@ -54,12 +54,12 @@ export default function EditorRunPanel({
     run(codeByLang[language] ?? '', s.input, s.output)
   }
 
-  // ✅ 1. 첫 번째 샘플 가져오기
+  // 1. 첫 번째 샘플 가져오기
   const firstSample = samples && samples.length > 0 ? samples[0] : null
 
   return (
     <>
-      {/* ✅ 2. (추가) 에디터 상단에 첫 번째 샘플 데이터 표시 */}
+      {/* (추가) 에디터 상단에 첫 번째 샘플 데이터 표시 */}
       {firstSample && (
         <div className="mb-4 rounded-xl bg-slate-50 border border-slate-200 p-4 text-sm">
           <div className="flex items-center gap-2 mb-2">
@@ -117,11 +117,9 @@ export default function EditorRunPanel({
       {/* ... (이하 실행 결과창 및 버튼들은 기존 코드와 동일) ... */}
       <pre
         className={`w-full h-auto max-h-48 overflow-auto rounded-xl border p-3 mt-4 text-sm whitespace-pre-wrap break-words ${
-          stdout.startsWith('✅ 모든 샘플 통과!')
+          stdout.startsWith('모든 샘플 통과!')
             ? 'border-green-300 bg-green-50 text-green-800'
-            : stdout.startsWith('✅')
-            ? 'border-green-300 bg-green-50 text-green-800'
-            : stdout.startsWith('❌')
+            : stdout.includes('오답') || stdout.includes('실행 오류') || (stdout.includes('샘플 통과') && !stdout.startsWith('모든 샘플 통과!'))
             ? 'border-red-300 bg-red-50 text-red-800'
             : 'border-slate-200 bg-slate-50 text-slate-700'
         }`}

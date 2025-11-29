@@ -52,7 +52,7 @@ export default function EvaluationPanel() {
     }
   }
 
-  // ✅ 3. (추가) 등급에 따른 텍스트 색상 반환 함수
+  // 등급에 따른 텍스트 색상 반환 함수
   const getGradeColor = (grade: string) => {
     if (grade === 'A') return 'text-green-600'
     if (grade === 'B') return 'text-blue-600'
@@ -76,7 +76,7 @@ export default function EvaluationPanel() {
           </button>
         </div>
 
-        {/* ✅ 4. (수정) 점수 -> 등급 표시줄 */}
+        {/* 점수 -> 등급 표시줄 */}
         <div className="mt-3 grid grid-cols-2 md:grid-cols-5 gap-2 text-sm">
           {(['understand', 'decompose', 'pattern', 'abstract', 'pseudocode'] as StepKey[]).map(
             (k) => {

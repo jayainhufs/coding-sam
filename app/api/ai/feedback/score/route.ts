@@ -9,7 +9,7 @@ const BodySchema = z.object({
   text: z.string().min(1, 'text is required'),
 })
 
-// ✅ 기본 통과선 완화 (환경변수 없으면 40)
+// 기본 통과선 완화 (환경변수 없으면 40)
 const PASS_LINE = Number(process.env.AI_PASS_LINE ?? '40')
 
 // ───────────── Quick-Fail Guard (완화판) ─────────────

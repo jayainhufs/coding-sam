@@ -13,7 +13,7 @@ export type ProblemProgress = {
   scores: StepScores // 최종 점수
   attempts: number // 제출 횟수
   solvedAt?: string // ISO date
-  status?: 'solved' | 'in-progress' // ✅ 2. (추가) 상태 타입
+  status?: 'solved' | 'in-progress' // 상태 타입
 }
 export type ProgressRecord = ProblemProgress
 
@@ -29,7 +29,7 @@ function currentUserName(): string | null {
 }
 function userKey(suffix: string): string {
   const u = currentUserName()
-  // ✅ 2. (수정) AuthContext의 normalizeUser 사용
+  // AuthContext의 normalizeUser 사용
   const who = u ? normalizeUser(u) : 'anon'
   return `coding-sam:${suffix}:${who}`
 }
@@ -102,7 +102,7 @@ export function setProgress(problemId: string, patch: Partial<ProblemProgress>) 
   }
   if (typeof window !== 'undefined') {
     localStorage.setItem(K.PROGRESS(), JSON.stringify(all))
-    // ✅ 3. (추가) "푼 문제 0개" 버그 수정:
+    // "푼 문제 0개" 버그 수정:
     //    진행도가 변경될 때 'storage' 이벤트를 수동으로 발생시켜
     //    app/home/page.tsx가 즉시 리-렌더링되도록 함
     window.dispatchEvent(
@@ -120,14 +120,14 @@ export function markSolved(problemId: string) {
   if (typeof window !== 'undefined') {
     localStorage.setItem(K.SOLVED(), JSON.stringify([...solved]))
   }
-  // ✅ 4. (핵심 버그 수정) K.PROGRESS() 키에도 'status: "solved"'를 저장
+  // (핵심 버그 수정) K.PROGRESS() 키에도 'status: "solved"'를 저장
   setProgress(problemId, {
     solvedAt: new Date().toISOString(),
-    status: 'solved', // 👈 이 부분이 버그의 원인이었습니다.
+    status: 'solved', // 이 부분이 버그의 원인이었습니다.
   })
 }
 export function getSolvedList(): string[] {
-  // ✅ 5. (수정) K.PROGRESS()를 기준으로 "solved" 목록을 가져오도록 변경
+  // (수정) K.PROGRESS()를 기준으로 "solved" 목록을 가져오도록 변경
   // (K.SOLVED() 키는 레거시/중복이므로 PROGRESS를 신뢰)
   const all = getAllProgress()
   return Object.entries(all)
@@ -146,7 +146,7 @@ export function computeLearningRate(scores: StepScores | undefined): number {
   return Math.max(0, Math.min(100, avg))
 }
 
-// ✅ 6. (추가) 점수를 등급으로 변환하는 함수
+// 점수를 등급으로 변환하는 함수
 export function scoreToGrade(score: number): string {
   if (score >= 70) return 'A'
   if (score >= 50) return 'B'

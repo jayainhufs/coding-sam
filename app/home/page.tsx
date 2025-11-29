@@ -25,7 +25,7 @@ const ymdLocal = (d = new Date()) => {
 
 export default function HomeDashboard() {
   const [problems, setProblems] = useState<Problem[]>([])
-  // ✅ 3. (추가) "오늘의 추천 문제"를 위한 별도 state
+  // "오늘의 추천 문제"를 위한 별도 state
   const [recommendedProblem, setRecommendedProblem] = useState<
     Problem | undefined
   >(undefined)
@@ -92,7 +92,7 @@ export default function HomeDashboard() {
     }
   }, [])
 
-  /* ✅ 4. (수정) 문제 로드 및 "랜덤 추천" 선택 */
+  /* 문제 로드 및 "랜덤 추천" 선택 */
   useEffect(() => {
     fetch('/api/problems')
       .then((r) => r.json())
@@ -130,7 +130,7 @@ export default function HomeDashboard() {
     return () => window.removeEventListener('storage', handleStorageChange)
   }, [])
 
-  // ✅ 5. (수정) 'top' 변수가 'recommendedProblem' state를 사용하도록 변경
+  // 'top' 변수가 'recommendedProblem' state를 사용하도록 변경
   const top = recommendedProblem
   const topProgress = top ? progressMap[top.id] : undefined
   const topSolved = top ? solvedSet.has(top.id) : false
@@ -152,7 +152,7 @@ export default function HomeDashboard() {
         {/* 좌: 추천 / 우: 레벨+스트릭+풀이 */}
         <section className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6 mb-8">
           <div className="md:col-span-2">
-            {/* ✅ 2. (추가) 등급 변환 함수 전달 */}
+            {/* 등급 변환 함수 전달 */}
             <RecommendedToday
               problem={top}
               xp={xp}
@@ -189,7 +189,7 @@ export default function HomeDashboard() {
                 p={p}
                 progress={progressMap[p.id]}
                 solved={solvedSet.has(p.id)}
-                scoreToGrade={scoreToGrade} // ✅ 2. (추가) 등급 변환 함수 전달
+                scoreToGrade={scoreToGrade} // 등급 변환 함수 전달
               />
             ))}
           </div>
@@ -204,12 +204,12 @@ function ProblemCard({
   p,
   progress,
   solved,
-  scoreToGrade, // ✅ 3. (추가) prop 받기
+  scoreToGrade, // prop 받기
 }: {
   p: Problem
   progress?: number
   solved?: boolean
-  scoreToGrade: (score: number) => string // ✅ 3. (추가) prop 받기
+  scoreToGrade: (score: number) => string // prop 받기
 }) {
   const pill =
     p.difficulty === 'Easy'
@@ -236,7 +236,7 @@ function ProblemCard({
       <p className="text-sm text-gray-600 mt-1 line-clamp-3">{p.description}</p>
 
       <div className="mt-2 flex flex-wrap gap-2">
-        {/* ✅ 4. (수정) "학습률" -> "학습 등급" */}
+        {/* "학습률" -> "학습 등급" */}
         {typeof progress === 'number' && (
           <span className="text-xs px-2 py-0.5 rounded-full bg-[#146E7A] text-white">
             학습 등급 {scoreToGrade(progress)}

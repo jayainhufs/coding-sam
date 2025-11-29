@@ -26,7 +26,7 @@ export default function MyPage() {
   const [username, setUsername] = useState('사용자')
   const [level, setLevel] = useState('beginner')
   const [goal, setGoal] = useState('algorithm')
-  // ✅ 6. 'codeStyle' state를 객체로 받도록 수정 (기존 '미설정' -> null)
+  // 'codeStyle' state를 객체로 받도록 수정 (기존 '미설정' -> null)
   const [codeStyle, setCodeStyle] = useState<any>(null) // 초기값 'null'
   // --- 끝 ---
 
@@ -48,7 +48,7 @@ export default function MyPage() {
           const pref = JSON.parse(savedPref)
           if (pref.level) setLevel(pref.level)
           if (pref.goal) setGoal(pref.goal)
-          // ✅ 7. 'codeStyle' 객체를 state에 설정 (기존 로직)
+          // 'codeStyle' 객체를 state에 설정 (기존 로직)
           if (pref.codeStyle) setCodeStyle(pref.codeStyle)
         } catch (e) {
           console.error('설정 로드 실패:', e)
@@ -58,7 +58,7 @@ export default function MyPage() {
   }, [authUser])
   // --- 끝 ---
 
-  // ✅ 8. getAllProgress, computeLearningRate 호출 복원
+  // getAllProgress, computeLearningRate 호출 복원
   const progress = getAllProgress() as Record<string, any>
 
   const solvedCount = Object.keys(progress).length
@@ -140,7 +140,7 @@ export default function MyPage() {
             </div>
             <div className="flex items-center justify-between">
               <dt className="text-slate-600">평균 학습 등급</dt>
-              {/* ✅ 4. (수정) "%" -> "등급" */}
+              {/* "%" -> "등급" */}
               <dd className="font-semibold">
                 {scoreToGrade(avgLearningRate)} 등급
               </dd>

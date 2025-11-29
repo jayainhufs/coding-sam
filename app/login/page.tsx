@@ -17,7 +17,7 @@ export default function LoginPage() {
     if (trimmedName) {
       // localStorage.setItem('coding-sam:user', name.trim()) // <- 삭제
       // router.push('/home') // <- 삭제
-      login(trimmedName) // ✅ AuthContext의 login 함수 호출
+      login(trimmedName) // AuthContext의 login 함수 호출
     } else {
       alert('이름을 입력해주세요.')
     }

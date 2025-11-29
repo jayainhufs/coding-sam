@@ -272,9 +272,9 @@ export async function POST(req: Request) {
       ],
     }
 
-const order: Array<'medium'|'hard'|'applied'> = ['medium','hard','applied']
+    const order: Array<'medium'|'hard'|'applied'> = ['medium','hard','applied']
     
-    // ✅ [수정] 6개를 억지로 채우는 'while' 루프 대신, 'fallbackBank'를 순회하는 'for...of' 루프로 변경
+    // [수정] 6개를 억지로 채우는 'while' 루프 대신, 'fallbackBank'를 순회하는 'for...of' 루프로 변경
     for (const diff of order) {
       const bank = fallbackBank[diff] // 'bank' 정의를 루프 안으로 이동
 
@@ -289,7 +289,7 @@ const order: Array<'medium'|'hard'|'applied'> = ['medium','hard','applied']
         let qtext = pick.q
         const qKey = norm(qtext) // qKey 추가
 
-        // 2. ✅ [핵심 수정] 꼬리표(suffix)를 붙이는 'while' 루프 대신,
+        // 2. [핵심 수정] 꼬리표(suffix)를 붙이는 'while' 루프 대신,
         //    중복 시 'continue' (건너뛰기)로 변경
         if (seenQ.has(qKey) || (sig && seenOpts.has(sig))) {
           continue // 중복된 질문/보기 세트이므로 추가하지 않고 건너뜀

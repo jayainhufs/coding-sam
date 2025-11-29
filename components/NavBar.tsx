@@ -8,7 +8,7 @@ import { useAuth } from '@/lib/AuthContext'
 const navItems = [
   { href: '/home', label: '대시보드' },
   { href: '/problems', label: '문제' },
-] // ✅ 'AI 튜터' 제거
+] // 'AI 튜터' 제거
 
 const HIDE_LINKS_PATHS = new Set<string>(['/', '/home', '/problems', '/login', '/signup'])
 
@@ -64,7 +64,7 @@ export default function NavBar() {
           <div className="text-sm">
             {user ? (
               <div className="flex items-center gap-3">
-                {/* ✅ 사용자 이름 클릭 시 /me 이동 */}
+                {/* 사용자 이름 클릭 시 /me 이동 */}
                 <Link
                   href="/me"
                   aria-label="내 프로필로 이동"

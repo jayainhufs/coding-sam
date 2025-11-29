@@ -60,14 +60,14 @@ export default function Onboarding() {
     try {
       const u = user ?? localStorage.getItem(USER_KEY) // 타이밍 대비
       if (u) {
-        localStorage.setItem(PREF_KEY(u), JSON.stringify(pref)) // ✅ 사용자별 저장
+        localStorage.setItem(PREF_KEY(u), JSON.stringify(pref)) // 사용자별 저장
         localStorage.removeItem('coding-sam:pref') // (선택) 레거시 정리
       }
     } catch (e) {
       console.error('localStorage error', e)
     }
     // r.push('/home') // 1. 기존 /home 경로
-    r.push('/onboarding/style') // 2. ✅ 새로운 스타일 분석 페이지로 이동
+    r.push('/onboarding/style') // 2. 새로운 스타일 분석 페이지로 이동
   }
 
   const getButtonClass = (isActive: boolean) =>
