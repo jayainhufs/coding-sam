@@ -278,6 +278,13 @@ export default function LearnWizard({ problem }: { problem: Problem }) {
       addXP(30 + bonus)
       setScores(s)
       setAvgScore(finalAvg)
+      
+      // 코드 저장 (제출 시)
+      if (codeByLang[language]?.trim()) {
+        const { saveSubmittedCode } = await import('@/utils/codeStorage')
+        saveSubmittedCode(problem.id, language, codeByLang[language])
+      }
+      
       goToQuiz(problem.id, 'pseudocode', pseudocode || '')
     } catch {
       const attempts = attemptsPrev + 1
@@ -290,6 +297,13 @@ export default function LearnWizard({ problem }: { problem: Problem }) {
       addXP(30 + bonus)
       setScores(s)
       setAvgScore(avg)
+      
+      // 코드 저장 (제출 시)
+      if (codeByLang[language]?.trim()) {
+        const { saveSubmittedCode } = await import('@/utils/codeStorage')
+        saveSubmittedCode(problem.id, language, codeByLang[language])
+      }
+      
       goToQuiz(problem.id, 'pseudocode', pseudocode || '')
     }
   }  

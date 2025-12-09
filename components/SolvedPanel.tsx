@@ -97,13 +97,13 @@ export default function SolvedPanel() {
                 <CheckCircleIcon className="h-4 w-4 shrink-0 text-emerald-600/90 group-hover:text-emerald-700" aria-hidden />
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-2">
-                    <span className="truncate text-sm font-medium text-slate-900 group-hover:underline">{it.id}</span>
+                    <span className="truncate text-sm font-medium text-slate-900 group-hover:underline min-w-0 flex-1">{it.id}</span>
                     {/* "학습률 %" -> "학습 등급" */}
-                    <span className="rounded-full bg-[#002D56]/90 px-1.5 py-0.5 text-[10px] font-semibold text-white">
+                    <span className="rounded-full bg-[#002D56]/90 px-1.5 py-0.5 text-[10px] font-semibold text-white shrink-0">
                       학습 등급 {scoreToGrade(it.rate)}
                     </span>
                     {it.attempts > 0 && (
-                      <span className="rounded-full bg-slate-100 px-1.5 py-0.5 text-[10px] font-medium text-slate-700">
+                      <span className="rounded-full bg-slate-100 px-1.5 py-0.5 text-[10px] font-medium text-slate-700 shrink-0">
                         시도 {it.attempts}회
                       </span>
                     )}

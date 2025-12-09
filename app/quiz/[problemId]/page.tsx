@@ -51,6 +51,7 @@ export default function QuizPage() {
   const [feedback, setFeedback] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [loadingStep, setLoadingStep] = useState(0) // 0: 답안 분석, 1: 퀴즈 생성, 2: 최종 검토
 
   // 결과 관리 상태
   const [results, setResults] = useState<QuizResultLog[]>([])
@@ -86,10 +87,19 @@ export default function QuizPage() {
   // 퀴즈 로드
   useEffect(() => {
     let alive = true
+    let stepTimer: NodeJS.Timeout | null = null
+    
     ;(async () => {
       try {
         setLoading(true)
         setError(null)
+        setLoadingStep(0)
+        
+        // 단계별 진행 시뮬레이션 (시각적 피드백)
+        stepTimer = setTimeout(() => {
+          if (alive) setLoadingStep(1)
+        }, 2000) // 2초 후 퀴즈 생성 단계로
+        
         const res = await fetch('/api/quiz/generate', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -100,9 +110,18 @@ export default function QuizPage() {
             originalProblem,
           }),
         })
+        
+        // API 호출 완료 시 최종 검토 단계로
+        if (alive) setLoadingStep(2)
+        
         const data = await res.json()
         if (!alive) return
         if (!res.ok || !data?.items) throw new Error('퀴즈 생성 실패')
+        
+        // 약간의 딜레이 후 완료 (사용자가 단계를 볼 수 있도록)
+        await new Promise(resolve => setTimeout(resolve, 500))
+        
+        if (!alive) return
         setItems(data.items as QuizItem[])
         setIdx(0)
         setResults([])
@@ -112,11 +131,16 @@ export default function QuizPage() {
         if (!alive) return
         setError(e?.message ?? '오류 발생')
       } finally {
-        if (alive) setLoading(false)
+        if (stepTimer) clearTimeout(stepTimer)
+        if (alive) {
+          setLoading(false)
+          setLoadingStep(0)
+        }
       }
     })()
     return () => {
       alive = false
+      if (stepTimer) clearTimeout(stepTimer)
     }
   }, [params.problemId, step, userText, originalProblem])
 
@@ -208,8 +232,88 @@ export default function QuizPage() {
   }
 
   // 렌더링
-  if (loading) return <div className="p-10 text-center">로딩 중...</div>
-  if (error) return <div className="p-10 text-red-600">{error}</div>
+  if (loading) {
+    return (
+      <main className="mx-auto max-w-3xl p-6">
+        <div className="rounded-2xl border border-gray-200 bg-white p-12 shadow-sm">
+          <div className="flex flex-col items-center justify-center space-y-6">
+            {/* 로딩 스피너 */}
+            <div className="relative w-16 h-16">
+              <div className="absolute inset-0 border-4 border-gray-200 rounded-full"></div>
+              <div className="absolute inset-0 border-4 border-[#002D56] rounded-full border-t-transparent animate-spin"></div>
+            </div>
+            
+            {/* 로딩 메시지 */}
+            <div className="text-center space-y-2">
+              <h2 className="text-xl font-bold text-gray-800">퀴즈를 생성하고 있어요</h2>
+              <p className="text-sm text-gray-600">
+                AI가 당신의 답안을 분석하여 맞춤형 퀴즈를 만들고 있습니다...
+              </p>
+            </div>
+            
+            {/* 진행 단계 표시 */}
+            <div className="w-full max-w-md space-y-3">
+              <div className={`flex items-center gap-2 text-sm transition-all duration-500 ${
+                loadingStep >= 0 ? 'text-gray-800' : 'text-gray-400'
+              }`}>
+                <div className={`w-2 h-2 rounded-full transition-all duration-500 ${
+                  loadingStep >= 0 
+                    ? 'bg-[#002D56] animate-pulse scale-125' 
+                    : 'bg-gray-300'
+                }`}></div>
+                <span className="font-medium">답안 분석 중</span>
+                {loadingStep >= 0 && <span className="text-xs text-gray-500 ml-auto">진행 중...</span>}
+              </div>
+              <div className={`flex items-center gap-2 text-sm transition-all duration-500 ${
+                loadingStep >= 1 ? 'text-gray-800' : 'text-gray-400'
+              }`}>
+                <div className={`w-2 h-2 rounded-full transition-all duration-500 ${
+                  loadingStep >= 1 
+                    ? 'bg-[#002D56] animate-pulse scale-125' 
+                    : 'bg-gray-300'
+                }`}></div>
+                <span className="font-medium">퀴즈 문제 생성 중</span>
+                {loadingStep >= 1 && <span className="text-xs text-gray-500 ml-auto">진행 중...</span>}
+              </div>
+              <div className={`flex items-center gap-2 text-sm transition-all duration-500 ${
+                loadingStep >= 2 ? 'text-gray-800' : 'text-gray-400'
+              }`}>
+                <div className={`w-2 h-2 rounded-full transition-all duration-500 ${
+                  loadingStep >= 2 
+                    ? 'bg-[#002D56] animate-pulse scale-125' 
+                    : 'bg-gray-300'
+                }`}></div>
+                <span className="font-medium">최종 검토 중</span>
+                {loadingStep >= 2 && <span className="text-xs text-gray-500 ml-auto">거의 완료...</span>}
+              </div>
+            </div>
+            
+            {/* 예상 시간 안내 */}
+            <div className="text-xs text-gray-500 mt-4">
+              보통 10-30초 정도 소요됩니다
+            </div>
+          </div>
+        </div>
+      </main>
+    )
+  }
+  
+  if (error) {
+    return (
+      <main className="mx-auto max-w-3xl p-6">
+        <div className="rounded-2xl border border-red-200 bg-red-50 p-8 text-center">
+          <div className="text-red-600 font-semibold mb-2">오류가 발생했습니다</div>
+          <div className="text-sm text-red-500">{error}</div>
+          <button
+            onClick={() => window.location.reload()}
+            className="mt-4 px-4 py-2 bg-red-600 text-white rounded-xl hover:bg-red-700"
+          >
+            다시 시도
+          </button>
+        </div>
+      </main>
+    )
+  }
 
   // 결과 화면
   if (showResult) {

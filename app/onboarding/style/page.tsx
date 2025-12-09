@@ -70,6 +70,10 @@ export default function StyleOnboardingPage() {
         }
 
         localStorage.setItem(prefKey, JSON.stringify(updatedPref))
+        
+        // 첫 번째 코드 저장 (온보딩용)
+        const { saveSubmittedCode } = await import('@/utils/codeStorage')
+        saveSubmittedCode('onboarding-sample', language, codeToAnalyze)
       }
 
       // 4. router.push -> window.location.href로 변경
