@@ -34,14 +34,14 @@ function quickFail(step: z.infer<typeof StepEnum>, raw: string) {
     const hasIn  = /(입력|input)/.test(lc)
     const hasOut = /(출력|output)/.test(lc)
     const hasCon = /(제약|constraint|n\s*[<=>]|o\([^)]+\))/.test(lc)
-    const hasEd  = /(엣지|edge|경계)/.test(lc)
+    const hasEd  = /(엣지|edge|경계|특별한 경우|주의할 경우|특수)/.test(lc)
     const okCount = [hasIn, hasOut, hasCon, hasEd].filter(Boolean).length
     if (okCount < 2) {
       return {
         fail: true,
         score: 30,
-        tips: ['입력/출력 중 하나 + 제약 또는 엣지 중 하나만이라도 적기', 'n≤… 같은 수치 한 번만 박기'],
-        missing: ['입/출력/제약/엣지 중 2개 미만'],
+        tips: ['입력/출력 중 하나 + 제약 또는 특별한 경우 중 하나만이라도 적기', 'n≤… 같은 수치 한 번만 박기'],
+        missing: ['입/출력/제약/특별한 경우 중 2개 미만'],
       }
     }
   }
@@ -102,11 +102,11 @@ function quickFail(step: z.infer<typeof StepEnum>, raw: string) {
 const RUBRIC: Record<z.infer<typeof StepEnum>, { criterion: string; lifts: string[] }> = {
   understand: {
     criterion:
-`- 요구/입·출력/제약/엣지케이스를 모호함 없이 1문단 요약
+`- 요구/입·출력/제약/특별한 경우를 모호함 없이 1문단 요약
 - 제약→복잡도 연결(예: n≤1e5 → O(n))
 - 반례 1줄 + 성공/실패 조건 요약`,
     lifts: [
-      '40→60: 입력/출력을 구체 타입/범위로, 엣지케이스 ≥2',
+      '40→60: 입력/출력을 구체 타입/범위로, 특별한 경우 ≥2',
       '60→80: 제약 수치화 + 목표 복잡도 연결',
       '80→95: 반례 1줄 + 성공/실패 테스트 문장',
     ],
@@ -138,7 +138,7 @@ const RUBRIC: Record<z.infer<typeof StepEnum>, { criterion: string; lifts: strin
     criterion:
 `- I/O 표(이름/타입/범위/예시)
 - 상태 전이 텍스트 다이어그램
-- 경계/엣지 분기(빈배열/음수/중복/정렬 등)`,
+- 경계/특별한 경우 분기(빈배열/음수/중복/정렬 등)`,
     lifts: [
       '40→60: I/O 표 작성',
       '60→80: 상태 전이 정리',
@@ -164,7 +164,7 @@ const BASELINE: Record<z.infer<typeof StepEnum>, string> = {
 `기본 요건(=50점):
 - 입력/출력을 "이름·타입·범위(숫자 단위 포함)"로 1회 이상 명시
 - 제약을 수치로 1개 이상 명시(n, 값 범위 등)하고 목표 복잡도와 최소 1줄로 연결
-- 엣지케이스 ≥2를 문장으로 열거`,
+- 특별한 경우 ≥2를 문장으로 열거`,
   decompose:
 `기본 요건(=50점):
 - "입력 파싱 → 핵심 로직 → 출력"의 3블록 이상으로 단계화

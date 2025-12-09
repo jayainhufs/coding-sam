@@ -44,7 +44,7 @@ function analyzeGaps(step: z.infer<typeof StepEnum>, text: string | undefined) {
       { name: '입력', ok: t => /(입력|input)/.test(t) },
       { name: '출력', ok: t => /(출력|output)/.test(t) },
       { name: '제약→복잡도', ok: t => /(제약|constraint|o\([^)]+\)|n\s*<=)/i.test(t) },
-      { name: '엣지(≥2)', ok: t => /(엣지|edge|경계)/.test(t) },
+      { name: '특별한 경우(≥2)', ok: t => /(엣지|edge|경계|특별한 경우|주의할 경우|특수)/.test(t) },
       { name: '반례(1)', ok: t => /(반례|counter)/.test(t) },
     ],
     decompose: [
@@ -89,14 +89,14 @@ function buildHintFromMissing(
   if (missing.length === 0) {
     bullets.push(
       `- ${key}의 입력 타입·범위를 수치로 고정해 보세요.`,
-      `- ${key}에 대한 엣지케이스 2가지를 한 줄씩 적어 보세요.`,
+      `- ${key}에 대한 특별한 경우 2가지를 한 줄씩 적어 보세요.`,
       `- 제약에서 목표 복잡도(O(…))까지 연결 문장을 1줄로 써 보세요.`
     )
   } else {
     if (missing.some(m => m.includes('입력'))) bullets.push(`- ${key}에서 **입력**의 타입/범위/예시 1개를 명시하세요.`)
     if (missing.some(m => m.includes('출력'))) bullets.push(`- ${key}의 **출력 형식**(이름/타입/예시 1개)을 적어 보세요.`)
     if (missing.some(m => m.includes('제약'))) bullets.push(`- **제약→복잡도**를 연결: n의 범위를 가정하고 목표 복잡도(O(…))를 1줄로 쓰세요.`)
-    if (missing.some(m => m.includes('엣지'))) bullets.push(`- **엣지케이스** 2개를 문장으로 적으세요(예: 전부 음수, 빈 배열 등).`)
+    if (missing.some(m => m.includes('엣지') || m.includes('특별한 경우') || m.includes('주의할 경우'))) bullets.push(`- **특별한 경우** 2개를 문장으로 적으세요(예: 전부 음수, 빈 배열 등).`)
     if (missing.some(m => m.includes('반례'))) bullets.push(`- **반례** 1줄: 현재 가정이 실패하는 입력을 한 줄로 써 보세요.`)
   }
 

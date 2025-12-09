@@ -103,9 +103,6 @@ export default function EditorRunPanel({
             {l.toUpperCase()}
           </button>
         ))}
-        <div className="ml-auto text-xs md:text-sm text-slate-500">
-          VSCode 스타일 하이라이트
-        </div>
       </div>
 
       <CodeEditor
@@ -119,7 +116,7 @@ export default function EditorRunPanel({
         className={`w-full h-auto max-h-48 overflow-auto rounded-xl border p-3 mt-4 text-sm whitespace-pre-wrap break-words ${
           stdout.startsWith('모든 샘플 통과!')
             ? 'border-green-300 bg-green-50 text-green-800'
-            : stdout.includes('오답') || stdout.includes('실행 오류') || (stdout.includes('샘플 통과') && !stdout.startsWith('모든 샘플 통과!'))
+            : stdout.includes('오답') || stdout.includes('실행 오류') || stdout.includes('런타임 에러') || stdout.includes('시간 초과') || stdout.includes('메모리 초과') || (stdout.includes('샘플 통과') && !stdout.startsWith('모든 샘플 통과!'))
             ? 'border-red-300 bg-red-50 text-red-800'
             : 'border-slate-200 bg-slate-50 text-slate-700'
         }`}

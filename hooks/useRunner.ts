@@ -30,11 +30,42 @@ export function useRunner(language: LanguageKey) {
         if (!j.ok) {
           setStdout(inputDisplay + `실행 오류:\n${j.error}`)
         } else {
-          const actualOutput = (
-            j.result?.run?.output ??
-            j.result?.stdout ??
-            JSON.stringify(j.result, null, 2)
-          ).trim()
+          const result = j.result
+          const stderr = result?.run?.stderr ?? result?.stderr ?? ''
+          const stdout = result?.run?.output ?? result?.stdout ?? ''
+          
+          // 런타임 에러 처리 (백준 스타일)
+          if (stderr && stderr.trim()) {
+            const errorMsg = stderr.trim()
+            let errorType = '런타임 에러'
+            
+            // 에러 타입 구분
+            if (errorMsg.includes('IndexError') || errorMsg.includes('list index out of range')) {
+              errorType = '런타임 에러 (IndexError)'
+            } else if (errorMsg.includes('ValueError')) {
+              errorType = '런타임 에러 (ValueError)'
+            } else if (errorMsg.includes('KeyError')) {
+              errorType = '런타임 에러 (KeyError)'
+            } else if (errorMsg.includes('TypeError')) {
+              errorType = '런타임 에러 (TypeError)'
+            } else if (errorMsg.includes('ZeroDivisionError') || errorMsg.includes('division by zero')) {
+              errorType = '런타임 에러 (ZeroDivisionError)'
+            } else if (errorMsg.includes('Segmentation fault') || errorMsg.includes('segmentation fault')) {
+              errorType = '런타임 에러 (Segmentation fault)'
+            } else if (errorMsg.includes('Time limit exceeded') || errorMsg.includes('시간 초과')) {
+              errorType = '시간 초과'
+            } else if (errorMsg.includes('Memory limit exceeded') || errorMsg.includes('메모리 초과')) {
+              errorType = '메모리 초과'
+            }
+            
+            setStdout(
+              inputDisplay + 
+              `${errorType}\n\n${errorMsg}`
+            )
+            return
+          }
+          
+          const actualOutput = stdout.trim()
 
           if (expectedOutput) {
             const expected = expectedOutput.trim()
@@ -113,11 +144,41 @@ export function useRunner(language: LanguageKey) {
             continue // 다음 샘플로 이동
           }
 
-          const actualOutput = (
-            j.result?.run?.output ??
-            j.result?.stdout ??
-            ''
-          ).trim()
+          const result = j.result
+          const stderr = result?.run?.stderr ?? result?.stderr ?? ''
+          const stdout = result?.run?.output ?? result?.stdout ?? ''
+          
+          // 런타임 에러 처리
+          if (stderr && stderr.trim()) {
+            const errorMsg = stderr.trim()
+            let errorType = '런타임 에러'
+            
+            // 에러 타입 구분
+            if (errorMsg.includes('IndexError') || errorMsg.includes('list index out of range')) {
+              errorType = '런타임 에러 (IndexError)'
+            } else if (errorMsg.includes('ValueError')) {
+              errorType = '런타임 에러 (ValueError)'
+            } else if (errorMsg.includes('KeyError')) {
+              errorType = '런타임 에러 (KeyError)'
+            } else if (errorMsg.includes('TypeError')) {
+              errorType = '런타임 에러 (TypeError)'
+            } else if (errorMsg.includes('ZeroDivisionError') || errorMsg.includes('division by zero')) {
+              errorType = '런타임 에러 (ZeroDivisionError)'
+            } else if (errorMsg.includes('Segmentation fault') || errorMsg.includes('segmentation fault')) {
+              errorType = '런타임 에러 (Segmentation fault)'
+            } else if (errorMsg.includes('Time limit exceeded') || errorMsg.includes('시간 초과')) {
+              errorType = '시간 초과'
+            } else if (errorMsg.includes('Memory limit exceeded') || errorMsg.includes('메모리 초과')) {
+              errorType = '메모리 초과'
+            }
+            
+            detailedResults.push(
+              `케이스 ${i + 1} (입력: ${truncatedInput}): ${errorType}\n${errorMsg}`,
+            )
+            continue
+          }
+
+          const actualOutput = stdout.trim()
 
           if (actualOutput === expected) {
             correctCount++

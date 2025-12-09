@@ -53,8 +53,7 @@ export default function LearnWizard({ problem }: { problem: Problem }) {
   const [understand, setUnderstand] = useState('')
   const [decompose, setDecompose] = useState('')
   const [pattern, setPattern] = useState('')
-  const [abstractIn, setAbstractIn] = useState('')
-  const [abstractOut, setAbstractOut] = useState('')
+  const [abstract, setAbstract] = useState('')
   const [pseudocode, setPseudocode] = useState('')
 
   // 코드/언어
@@ -108,7 +107,7 @@ export default function LearnWizard({ problem }: { problem: Problem }) {
     if (step === 'understand') return understand
     if (step === 'decompose') return decompose
     if (step === 'pattern') return pattern
-    if (step === 'abstract') return `입력:\n${abstractIn}\n\n출력:\n${abstractOut}`
+    if (step === 'abstract') return abstract
     return pseudocode
   }
   const [aiScore, setAiScore] = useState<number>(0)
@@ -152,7 +151,7 @@ export default function LearnWizard({ problem }: { problem: Problem }) {
     return () => {
       if (debounceId.current) window.clearTimeout(debounceId.current)
     }
-  }, [step, understand, decompose, pattern, abstractIn, abstractOut, pseudocode])
+  }, [step, understand, decompose, pattern, abstract, pseudocode])
   const canNext =
     step === 'pseudocode' || step === 'pattern' ? true : aiScore >= PASS_LINE
   const scoreOf = (text: string, keywords: string[]) => {
@@ -197,6 +196,9 @@ export default function LearnWizard({ problem }: { problem: Problem }) {
         '제약',
         'edge',
         '엣지',
+        '특별한 경우',
+        '주의할 경우',
+        '경계',
         '반례',
         'o(n)',
       ]),
@@ -217,13 +219,13 @@ export default function LearnWizard({ problem }: { problem: Problem }) {
         'kadane',
         'hash',
       ]),
-      abstract: scoreOf(`${abstractIn}\n${abstractOut}`, [
+      abstract: scoreOf(abstract, [
         '입력',
         '출력',
         '흐름',
         '정의',
-        '전이',
-        '경계'
+        '핵심',
+        '아이디어'
       ]),
       pseudocode: (() => {
         let baseScore = scoreOf(pseudocode, [
@@ -295,7 +297,7 @@ export default function LearnWizard({ problem }: { problem: Problem }) {
     if (st === 'understand') return !!understand.trim()
     if (st === 'decompose') return !!decompose.trim()
     if (st === 'pattern') return !!pattern.trim()
-    if (st === 'abstract') return !!(abstractIn.trim() || abstractOut.trim())
+    if (st === 'abstract') return !!abstract.trim()
     if (st === 'pseudocode') return !!pseudocode.trim()
     return false
   }
@@ -330,9 +332,9 @@ ${JSON.stringify(studentProfile ?? { styleSummary: '기본 스타일 사용' }, 
     // 7b. (기존) 'hint', 'request' 모드용 프롬프트
     const goal = `당신은 학습자를 5단계로 코칭하는 한국어 코딩 튜터입니다.
 ① 이해: 요구/입·출력/제약/엣지를 1문단으로 요약(제약→복잡도 연결, 반례 1줄)
-② 분해: 3~7 하위 단계(입력→핵심→출력), 각 단계의 상태/전이/예외를 1줄씩
-③ 패턴: 후보 ≥2 비교, 반례로 배제, 최종 선택의 불변식 1줄
-④ 추상화: I/O 표 + 상태 전이 + 경계/엣지 분기
+② 분해: 문제를 4개의 단계로 나누고, 각 단계의 입력·상태·처리·출력을 정리
+③ 패턴: 문제를 해결할 수 있는 방법을 2개 이상 비교하고, 각 방법의 장단점과 복잡도를 분석하여 최적의 방법을 선택
+④ 추상화: 문제 해결의 핵심 아이디어를 말로 정리
 ⑤ 의사코드: 10~20줄 절차 + 불변식/종료조건/복잡도 + 단위테스트
 현재 선택된 단계의 기준만 적용하고, 다른 단계로 넘기지 마세요.`
     const base = `${goal}
@@ -340,13 +342,13 @@ ${JSON.stringify(studentProfile ?? { styleSummary: '기본 스타일 사용' }, 
 - 너무 긴 설명 금지. 구체적이고 짧게.`
     const guide: Record<StepKey, string> = {
       understand:
-        '이해 단계: 요구·입출력·제약·엣지를 1문단으로. 제약→복잡도 연결, 반례 1줄.',
+        '이해 단계: 입력·출력·제약·특별한 경우를 1문단으로 정리. 제약→복잡도 연결, 반례 1줄.',
       decompose:
-        '분해 단계: 3~7 하위 단계(입력→핵심→출력), 각 단계의 상태/전이/예외.',
-      pattern: '패턴 단계: 후보 ≥2 비교, 반례로 배제, 최종 불변식 1줄.',
-      abstract: '추상화 단계: I/O 표 + 상태 전이 + 경계/엣지 분기.',
+        '분해 단계: 문제를 4개의 단계로 나누고, 각 단계의 입력·상태·처리·출력을 정리하세요.',
+      pattern: '패턴 단계: 문제를 해결할 수 있는 방법을 2개 이상 비교하고, 각 방법의 장단점과 복잡도를 분석하여 최적의 방법을 선택하세요.',
+      abstract: '추상화 단계: 문제 해결의 핵심 아이디어를 말로 정리하세요. 입력과 출력, 그리고 어떻게 처리할지에 대한 핵심 개념을 설명하세요.',
       pseudocode:
-        '의사코드 단계: 10~20줄 + 불변식/종료조건/복잡도 + 단위테스트.',
+        '의사코드 단계: 의사코드를 작성한 후 실제 코드로 구현하고 실행해보세요. 코드가 올바르게 동작하는지 확인하고 필요하다면 수정하세요.',
     }
 
     return (st: StepKey, mode: AiMode) => {
@@ -370,7 +372,7 @@ ${JSON.stringify(studentProfile ?? { styleSummary: '기본 스타일 사용' }, 
           : st === 'pattern'
           ? pattern
           : st === 'abstract'
-          ? `입력:\n${abstractIn}\n\n출력:\n${abstractOut}`
+          ? abstract
           : pseudocode // 5단계일 경우 '의사코드' textarea
       const hasInput = Boolean(userText.trim())
       if (mode === 'hint') {
@@ -399,8 +401,7 @@ ${userText}`
     understand,
     decompose,
     pattern,
-    abstractIn,
-    abstractOut,
+    abstract,
     pseudocode,
     studentProfile, // (추가) 의존성
     codeByLang, // (추가) 의존성
@@ -460,8 +461,8 @@ ${userText}`
             <h2 className="text-lg md:text-xl font-bold mb-1">
               1) 문제 이해하기
             </h2>
-            <p className="text-xs text-slate-600 mb-3">
-              요구/입출력/제약/엣지케이스 1문단(제약→복잡도, 반례 1줄)
+            <p className="text-sm text-slate-700 mb-4">
+              문제의 핵심을 파악해보세요. 입력과 출력, 제약 조건, 특별한 경우, 그리고 반례를 한 문단으로 정리하세요.
             </p>
             <textarea
               rows={10}
@@ -478,8 +479,8 @@ ${userText}`
             <h2 className="text-lg md:text-xl font-bold mb-1">
               2) 문제 분해하기
             </h2>
-            <p className="text-xs text-slate-600 mb-3">
-              3~7단계, 각 단계에 상태/전이/예외
+            <p className="text-sm text-slate-700 mb-4">
+              문제를 해결 가능한 작은 단계로 나눠보세요. 각 단계에서 무엇을 입력받고, 어떤 상태가 변하는지, 어떤 결과를 출력하는지 정리하세요.
             </p>
             <textarea
               rows={10}
@@ -496,8 +497,8 @@ ${userText}`
             <h2 className="text-lg md:text-xl font-bold mb-1">
               3) 패턴 인식하기
             </h2>
-            <p className="text-xs text-slate-600 mb-3">
-              후보 ≥2 비교 → 반례로 제거, 최종 불변식
+            <p className="text-sm text-slate-700 mb-4">
+              문제를 해결할 수 있는 방법을 여러 개 생각해보고 비교해보세요. 각 방법의 장단점을 분석하고, 가장 적합한 방법을 선택하세요.
             </p>
             <textarea
               rows={10}
@@ -514,29 +515,16 @@ ${userText}`
             <h2 className="text-lg md:text-xl font-bold mb-1">
               4) 추상화하기
             </h2>
-            <p className="text-xs text-slate-600 mb-3">I/O 표식 + 상태 전이 + 경계</p>
-            <div className="grid md:grid-cols-2 gap-3">
-              <div>
-                <label className="text-xs text-slate-500">입력</label>
-                <textarea
-                  rows={8}
-                  className="mt-1 w-full h-[200px] rounded-xl border border-slate-300 p-3 outline-none focus:ring-2 focus:ring-[#002D56]"
-                  placeholder={T.abstractInPh}
-                  value={abstractIn}
-                  onChange={(e) => setAbstractIn(e.target.value)}
-                />
-              </div>
-              <div>
-                <label className="text-xs text-slate-500">출력</label>
-                <textarea
-                  rows={8}
-                  className="mt-1 w-full h-[200px] rounded-xl border border-slate-300 p-3 outline-none focus:ring-2 focus:ring-[#002D56]"
-                  placeholder={T.abstractOutPh}
-                  value={abstractOut}
-                  onChange={(e) => setAbstractOut(e.target.value)}
-                />
-              </div>
-            </div>
+            <p className="text-sm text-slate-700 mb-4">
+              문제 해결의 핵심 아이디어를 말로 정리해보세요. 입력과 출력, 그리고 어떻게 처리할지에 대한 핵심 개념을 설명하세요.
+            </p>
+            <textarea
+              rows={10}
+              className="w-full h-[220px] rounded-xl border border-slate-300 p-3 outline-none focus:ring-2 focus:ring-[#002D56]"
+              placeholder={T.abstract}
+              value={abstract}
+              onChange={(e) => setAbstract(e.target.value)}
+            />
           </>
         )}
 
@@ -545,8 +533,8 @@ ${userText}`
             <h2 className="text-lg md:text-xl font-bold mb-1">
               5) 의사코드 → 코드/실행
             </h2>
-            <p className="text-xs text-slate-600 mb-3">
-              10~20줄 + 불변식/종료조건/복잡도 + 단위테스트
+            <p className="text-sm text-slate-700 mb-4">
+              의사코드를 작성한 후, 실제 코드로 구현하고 실행해보세요. 코드가 올바르게 동작하는지 확인하고, 필요하다면 수정하세요.
             </p>
             <textarea
               rows={8}
