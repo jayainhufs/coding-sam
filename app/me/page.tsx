@@ -283,28 +283,59 @@ export default function MyPage() {
                     <h3 className="text-xs font-semibold text-blue-700 mb-2">명명 규칙</h3>
                     <div className="text-sm text-blue-600 space-y-1">
                       {codeStyle.patterns.naming_conventions.variables && (
-                        <div>변수: {codeStyle.patterns.naming_conventions.variables}</div>
+                        <div>변수: <code className="bg-blue-100 px-1.5 py-0.5 rounded text-xs font-mono">{codeStyle.patterns.naming_conventions.variables}</code></div>
                       )}
                       {codeStyle.patterns.naming_conventions.functions && (
-                        <div>함수: {codeStyle.patterns.naming_conventions.functions}</div>
+                        <div>함수: <code className="bg-blue-100 px-1.5 py-0.5 rounded text-xs font-mono">{codeStyle.patterns.naming_conventions.functions}</code></div>
                       )}
                     </div>
                   </div>
                 )}
                 
-                {codeStyle.patterns.control_flow && codeStyle.patterns.control_flow.length > 0 && (
-                  <div className="bg-green-50 rounded-xl p-4 border border-green-200">
-                    <h3 className="text-xs font-semibold text-green-700 mb-2">제어 흐름</h3>
-                    <div className="text-sm text-green-600 space-y-1">
-                      {codeStyle.patterns.control_flow.map((cf: any, i: number) => (
-                        <div key={i}>
-                          {cf.name === 'iterative_loops' && `반복문: ${cf.preference}`}
-                          {cf.name === 'recursion' && `재귀: ${cf.preference}`}
-                        </div>
-                      ))}
-                    </div>
+                <div className="bg-green-50 rounded-xl p-4 border border-green-200">
+                  <h3 className="text-xs font-semibold text-green-700 mb-2">제어 흐름</h3>
+                  <div className="text-sm text-green-600 space-y-2">
+                    {codeStyle.patterns.control_flow && Array.isArray(codeStyle.patterns.control_flow) && codeStyle.patterns.control_flow.length > 0 ? (
+                      codeStyle.patterns.control_flow.map((cf: any, i: number) => {
+                        const name = String(cf.name || '').toLowerCase()
+                        const preference = String(cf.preference || '')
+                        
+                        // preference 값을 한국어로 변환
+                        const preferenceMap: Record<string, string> = {
+                          'strong': '강함',
+                          'medium': '보통',
+                          'weak': '약함',
+                          'avoided': '회피함',
+                        }
+                        const preferenceKr = preferenceMap[preference.toLowerCase()] || preference
+                        
+                        // name에서 타입 추출
+                        if (name.includes('iterative_loops') || name.includes('반복문')) {
+                          return (
+                            <div key={i}>
+                              반복문: <span className="font-medium">{preferenceKr}</span>
+                            </div>
+                          )
+                        }
+                        if (name.includes('recursion') || name.includes('재귀')) {
+                          return (
+                            <div key={i}>
+                              재귀: <span className="font-medium">{preferenceKr}</span>
+                            </div>
+                          )
+                        }
+                        // 기타 경우
+                        return (
+                          <div key={i}>
+                            {name}: <span className="font-medium">{preferenceKr}</span>
+                          </div>
+                        )
+                      })
+                    ) : (
+                      <div className="text-green-500 italic">분석 데이터가 없습니다</div>
+                    )}
                   </div>
-                )}
+                </div>
               </div>
             )}
           </div>

@@ -41,7 +41,7 @@ export default function StyleOnboardingPage() {
     const codeToAnalyze = tab === 'sample' ? code : pastedCode
 
     if (!codeToAnalyze.trim()) {
-      console.error('분석할 코드를 입력해주세요.')
+      alert('분석할 코드를 입력해주세요.')
       setLoading(false)
       return
     }
@@ -54,7 +54,10 @@ export default function StyleOnboardingPage() {
       })
       const data = await res.json()
 
-      if (!res.ok) throw new Error(data.error || '분석에 실패했습니다.')
+      // HTTP 상태 코드와 응답의 ok 필드 모두 체크
+      if (!res.ok || !data.ok) {
+        throw new Error(data.error || '분석에 실패했습니다.')
+      }
 
       const currentUserName = user || localStorage.getItem(USER_KEY)
       if (currentUserName) {
@@ -76,10 +79,12 @@ export default function StyleOnboardingPage() {
         saveSubmittedCode('onboarding-sample', language, codeToAnalyze)
       }
 
+      // 성공 시 로딩 상태 유지한 채로 페이지 이동
       // 4. router.push -> window.location.href로 변경
       window.location.href = '/home'
     } catch (e: any) {
       console.error('스타일 분석 오류:', e)
+      alert(`스타일 분석 실패: ${e.message || '알 수 없는 오류가 발생했습니다.'}`)
       setLoading(false)
     }
   }
